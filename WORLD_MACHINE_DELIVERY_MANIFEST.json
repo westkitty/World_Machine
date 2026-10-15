@@ -1,0 +1,42 @@
+{
+  "plan": "/mnt/data/WORLD_MACHINE_84_PROPOSAL_IMPLEMENTATION_MASTERPLAN.md",
+  "plan_sha256": "7f490764b2e556d23ae868e93d16c8b969599dec32fd4e702c9b49a2dfc6ac2e",
+  "ledger": "/mnt/data/WORLD_MACHINE_84_ITEM_EXECUTION_COVERAGE_LEDGER.md",
+  "ledger_sha256": "bbf9c871a2ee3997c15f467d80786d07199c4643377353f9c3a3b317a9cb4dd9",
+  "phase_counts": {
+    "F0": 8,
+    "F1": 8,
+    "F2": 7,
+    "F3": 8,
+    "F4": 9,
+    "F5": 9,
+    "F6": 10,
+    "F7": 7,
+    "F8": 10,
+    "F9": 8
+  },
+  "count": 84,
+  "checkpoint_count": 73,
+  "files": {
+    "WORLD_MACHINE_84_PROPOSAL_IMPLEMENTATION_MASTERPLAN.md": {
+      "sha256": "7f490764b2e556d23ae868e93d16c8b969599dec32fd4e702c9b49a2dfc6ac2e",
+      "bytes": 52221
+    },
+    "WORLD_MACHINE_84_ITEM_EXECUTION_COVERAGE_LEDGER.md": {
+      "sha256": "bbf9c871a2ee3997c15f467d80786d07199c4643377353f9c3a3b317a9cb4dd9",
+      "bytes": 64146
+    },
+    "ANTIGRAVITY_WORLD_MACHINE_EXECUTION_LOCAL.md": {
+      "sha256": "05dd71f2a55eb150b3860bdc9654d59967bd0c83e055c47f8a9eb6a49b89c5e6",
+      "bytes": 19224
+    },
+    "ANTIGRAVITY_WORLD_MACHINE_EXECUTION_DRIVE.md": {
+      "sha256": "b4962acf9e8221e0fe9ddfbd83b855d24dc50bf9484384727374ce3ba5716713",
+      "bytes": 19134
+    },
+    "ANTIGRAVITY_WORLD_MACHINE_START_HERE.md": {
+      "sha256": "f36d7bd2f038c6387beec299397598db91048a536425fe4597cde7b14d9a8810",
+      "bytes": 3799
+    }
+  }
+}

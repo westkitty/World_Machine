@@ -10,6 +10,7 @@ import { CRISIS_INFO } from '../sim/systems/crises';
 import { relationKey } from '../sim/systems/trade';
 import { getTopology } from '../sim/topology';
 import { GOODS, TRADE_GOODS, formatDate, type BuildingType, type Good, type LaborFocus, type Policy, type Settlement, type TechId } from '../sim/types';
+import { classifyCellGeography, formatAreaKm2 } from '../sim/scale';
 import { BIOME_LABEL, buildOverlayContext, getOverlay } from '../render/overlays';
 import { lineChart, sparkline } from './charts';
 import { button, compact, h, meter, n0, n1, pct, row, section, signed, toneFor } from './dom';
@@ -49,6 +50,7 @@ export function regionPanel(app: App): HTMLElement {
   const events = s.events.filter((e) => e.cellId === id).slice(-8).reverse();
   const suit = settlementSuitability(c);
   const biomassFrac = c.biomassCap > 0 ? c.biomass / c.biomassCap : 0;
+  const geo = classifyCellGeography(id, s.cells, topo);
   return h('div.panel-body',
     h('header.panel-head',
       h('div.eyebrow', `Region ${id} · ${topo.lat[id].toFixed(1)}°, ${topo.lon[id].toFixed(1)}°`),
@@ -57,9 +59,10 @@ export function regionPanel(app: App): HTMLElement {
         c.conserved ? h('span.tag.good', ' Reserve') : null)),
     app.view.overlay !== 'terrain' ? h('div.callout', h('b', `${ov.label}: `), ov.value(c, id, ctx)) : null,
     section('Geography',
+      row('Classification', geo.categoryLabel, geo.description),
       row('Elevation', `${n0(c.elevation)} m`),
-      row('Area', `${n0(topo.area[id])} km²`, 'Exact spherical-polygon area of this cell'),
-      row('Coast / river', `${c.coastal ? 'coastal' : c.land ? 'inland' : 'sea'}${c.river ? ' · river' : ''}`),
+      row('Area', formatAreaKm2(topo.area[id]), 'Spherical-polygon area on the 642-region globe'),
+      row('Coast / river', `${geo.category}${c.river ? ' · river' : ''}`),
       c.land ? row('Settlement suitability', pct(suit), 'Fertility, water, temperature and coast, reduced by altitude and damage') : null),
     section('Climate',
       row('Temperature', `${n1(c.temperature)} °C now · ${n1(c.baseTemp)} °C mean`),
@@ -80,6 +83,7 @@ export function regionPanel(app: App): HTMLElement {
       buildings.length ? h('ul.list', ...buildings.map((b) => h('li',
         h('span', `${BUILDINGS[b.type].label} — ${b.status === 'construction' ? `building ${b.progress}/${BUILDINGS[b.type].months} mo` : `condition ${pct(b.condition)}`}${b.neglect > 2 ? ' · neglected' : ''}`),
         button('Demolish', () => app.run({ type: 'demolish', buildingId: b.id }, 'click'), { kind: 'ghost', disabled: blocked(app) })))) : h('p.muted', 'No structures.'),
+      row('Regional complexes', `${buildings.length} / 2`, 'Each region can host up to two landscape-scale infrastructure complexes'),
       row('Road links', String(s.roads.filter((r) => r.a === id || r.b === id).length))),
     events.length ? section('Regional history', h('ul.events', ...events.map((e) => h(`li.${e.severity}`, h('time', formatDate(e.tick)), ' ', e.text)))) : null,
   );

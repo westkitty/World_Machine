@@ -10,6 +10,7 @@ src/
     rng.ts                  sfc32 PRNG; 4-word state stored in saves
     noise.ts                seeded 3D simplex noise, fBm, ridged multifractal
     topology.ts             icosphere dual cells: centres, areas, neighbours, corners
+    scale.ts                geographic scale contract: physical units, classification, 642-cell metrics
     worldgen.ts             terrain field, climate, drainage, biomes, resources
     formulas.ts             shared environmental formulas (water renewal, crop response…)
     types.ts                all persisted state types
@@ -58,7 +59,8 @@ centre, each measured with the Van Oosterom–Strackee formula
 `tan(E/2) = |a·(b×c)| / (1 + a·b + b·c + c·a)`. The polygons partition the sphere, so the
 areas sum to 4πR² (R = 6371 km); the test asserts relative error < 1e-9. Cells are unequal
 (max/min area > 1.05) and every area-sensitive rule (water renewal, biomass and fish capacity,
-ocean coverage) scales by `areaRel = areaFrac × 642`.
+ocean coverage) scales by `areaRel = areaFrac × 642`. For full spatial unit definitions,
+physical constants, and classification rules, see `docs/GEOGRAPHIC_SCALE_CONTRACT.md` and `src/sim/scale.ts`.
 
 Neighbours are ordered by angle in the tangent plane. Distances are great-circle
 (`atan2(|a×b|, a·b) × R`). `nearestCell` does a greedy walk on the Delaunay-like graph, which
