@@ -435,6 +435,42 @@
   - `bun run test` passed 128/128 Vitest tests across 12 suites in 4.5s.
   - `bun run build` built production bundle cleanly in 1.20s.
   - `bun run sim:bench` passed 7/7 benchmark suites in 1.89s.
-  - Checkpoint commit: to be committed.
+  - Checkpoint commit: `a94284f80401d8bddb4c6f656c05cdd3c8b731fa` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP12 — P072: Deterministic civilization replay engine.
+
+---
+
+### Checkpoint CP12 — P072: Deterministic Civilization Replay Engine
+
+- **Proposal:** P072 — Deterministic civilization replay engine
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · L
+- **Prerequisites:** CP11 (P073) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/sim/replay.ts`:
+    - Defined engine constants: `REPLAY_FORMAT_VERSION = 1`, `RULESET_VERSION = 1`, `ENGINE_BUILD_ID = 'world-machine-v1.0.0'`.
+    - `computeCanonicalStateHash`: Deterministic dual 32-bit FNV-1a state digest (16-char hex) over seed, tick, mode, scenario streak/status, rules, policy, sorted settlements, inventories, buildings, roads, routes, technologies, active crises, and 642 cell ecology metrics.
+    - `createCheckpointSummary`: Captures high-level telemetry (living population, settlements, buildings, active crises, active routes).
+    - `compareWorldStates`: Produces deep, actionable divergence diagnostics pinpointing differences across settlements, inventories, buildings, routes, or scenario status.
+    - `replaySession`: Pure deterministic replay engine advancing simulation step-by-step, executing queued player commands at exact ticks, validating canonical checkpoint hashes, and producing detailed divergence reports on failure.
+    - `ReplayRecorder`: In-flight recording engine capturing ordered tick-stamped commands and periodic checkpoints (e.g. yearly at 12-tick intervals).
+    - `ReplayRecorder.fromSave`: Supports post-save continuation from serialized snapshots.
+    - `exportReplay` and `importReplay`: Strict JSON serialization and deserialization with schema validation.
+    - Ruleset & version compatibility guard: Incompatible rulesets (`rulesetVersion > RULESET_VERSION`) or unsupported format versions reject with explicit errors rather than false proof.
+  - Created test suite `tests/replay.test.ts` with 7 test suites:
+    - **Faithful replay**: 48-tick simulation reproducing 5 checkpoints (ticks 0, 12, 24, 36, 48) and byte-identical final state (`JSON.stringify(result.state) === JSON.stringify(state)`).
+    - **Scenario world recording and replay**: Objective tracking and identical scenario status.
+    - **Post-save continuation**: Resumes replay from mid-game save snapshot.
+    - **Divergence reporting**: Detects and pinpoints exact tick of state mutation or checkpoint tampering.
+    - **Incompatible ruleset/format version rejection**: Fails clearly without false proof.
+    - **Export/import roundtrip**: Strict JSON validation and error reporting.
+    - **Canonical hash sensitivity**: Verifies sensitivity to minor population, inventory, or policy adjustments.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 135/135 Vitest tests across 13 suites in 5.01s.
+  - `bun run build` built production bundle cleanly in 1.76s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.45s.
+  - Checkpoint commit: to be committed.
+- **Next Task:** Checkpoint CP13 — P074: Automated strategy tournament.
 
