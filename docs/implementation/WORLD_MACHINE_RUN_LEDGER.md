@@ -227,3 +227,55 @@
   - `bun run build` built cleanly.
   - Checkpoint commit: `feat(world-machine): CP06 P003 scenario constraints authoritative` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP07 — P001: Forecast ownership and adoption integrity.
+
+---
+
+### Checkpoint CP07 — P001: Forecast Ownership and Adoption Integrity
+
+- **Proposal:** P001 — Forecast ownership and adoption integrity
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Repair · M
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP03 (P071) & CP04 (P082) completed
+- **Implementation Packet:**
+  - Extended `src/sim/compare.ts`:
+    - Implemented `computeStateFingerprint(state: WorldState): string` using deterministic 32-bit FNV-1a hashing over seed, tick, mode, scenario status, rules, policy, settlement count, total living population, building count, route count, and ID counters.
+    - Defined `ForkSemantics` interface tracking origin seed, origin tick, origin date, origin fingerprint, target tick, horizon months, mode, scenario ID, and ruleset summary.
+    - Updated `runBranch` to capture `originSeed`, `originTick`, `originFingerprint`, `forecastTicks`, and `fork: ForkSemantics`.
+    - Implemented `validateBranchAdoption(activeState: WorldState, branch: BranchResult): AdoptionValidation`:
+      - Rejects observer mode.
+      - Rejects active scenario ended/terminal states.
+      - Rejects seed mismatch between active world and branch origin.
+      - Rejects scenario ID mismatch.
+      - Rejects tick progression (active world has moved past forecast origin tick, preventing silent time rewinds).
+      - Rejects fingerprint mutation (active world state changed since forecast was calculated).
+      - Rejects forecast branches that reached terminal failure/success states.
+      - Rejects scenario policy violations in forecast.
+  - Updated `src/ui/panels.ts`:
+    - Exported `invalidateForecast(): void` resetting `compareResult = null` and `compareTick = -1`.
+    - Updated `compareTable` to render an explicit fork semantics callout box displaying origin seed, origin date, horizon, and origin fingerprint.
+    - Connected `validateBranchAdoption` to `Adopt A` and `Adopt B` buttons, disabling them with actionable reasons in tooltips and `aria-disabled` when invalid.
+    - Called `invalidateForecast()` upon adopting a branch.
+  - Updated `src/app/App.ts`:
+    - Called `invalidateForecast()` in `App.load` to guarantee loading a save slot, restarting, starting a new game, or importing a save purges any stale forecast comparisons.
+    - Updated `App.adoptBranch(branch)` to enforce `validateBranchAdoption`, toasting actionable rejection messages and playing `'invalid'` sound upon rejection.
+  - Created test suite `tests/forecast_integrity.test.ts`:
+    - `computes deterministic state fingerprints sensitive to seed, tick, rules, and policy`
+    - `runBranch captures origin seed, tick, fingerprint, and explicit fork semantics`
+    - `rejects adoption in observer mode`
+    - `rejects adoption if the world seed does not match the forecast origin`
+    - `rejects adoption if the active world has advanced past forecast origin (no time rewinding)`
+    - `rejects adoption if the active world state mutated since forecast was computed (fingerprint mismatch)`
+    - `rejects adoption if the active scenario has ended or forecast scenario mismatches`
+    - `rejects adoption if forecast branch reaches a terminal scenario state or violates scenario policy`
+    - `allows adoption when active state and forecast origin are congruent and valid`
+    - `supports invalidateForecast to ensure stale forecasts do not persist across world changes`
+  - Updated `docs/TECHNICAL.md` with Forecast ownership and adoption integrity section.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/forecast_integrity.test.ts` passed 10/10 tests.
+  - Total automated test suite expanded to 101 tests passing across 9 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`, `tests/forecast_integrity.test.ts`).
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run build` built cleanly.
+  - Checkpoint commit: `feat(world-machine): CP07 P001 forecast ownership and adoption integrity`
+- **Next Task:** Checkpoint CP08 — P004: Modal/time/keyboard coherence (final checkpoint of Phase F0).
+

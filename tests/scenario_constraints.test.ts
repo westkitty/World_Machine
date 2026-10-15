@@ -3,7 +3,7 @@ import { applyCommand, previewCommand } from '../src/sim/commands';
 import { createReferenceWorld } from '../src/sim/create';
 import { deserialize, serialize, validateState, SaveError } from '../src/sim/save';
 import { checkScenarioPolicy, createScenarioWorld, scenarioSystem } from '../src/sim/scenarios';
-import type { BranchResult } from '../src/sim/compare';
+import { runBranch } from '../src/sim/compare';
 
 describe('Authoritative Scenario Constraints (P003)', () => {
   it('rejects prohibited autonomy in first_footprint with actionable reason at command boundary', () => {
@@ -130,19 +130,8 @@ describe('Authoritative Scenario Constraints (P003)', () => {
 
   it('forecast adoption boundary rejects branches that violate scenario policy constraints', () => {
     const base = createScenarioWorld('first_footprint');
-    const branchState = createScenarioWorld('first_footprint');
-    branchState.policy.autonomy = 'full'; // Illegally mutated branch state
-
-    const branch: BranchResult = {
-      label: 'Strategy B (Illegal)',
-      policy: { autonomy: 'full' },
-      state: branchState,
-      metrics: {
-        population: 900, settlements: 1, foodStock: 5000, wellbeing: 0.6,
-        degradation: 0.1, territoryDegradation: 0.1, biomassFrac: 0.8, tradeDelivered: 0, crises: 0,
-      },
-      series: [900],
-    };
+    const branch = runBranch(base, 'Strategy B (Illegal)', {}, 12);
+    branch.state.policy.autonomy = 'full'; // Illegally mutated branch state
 
     const violation = checkScenarioPolicy(base, branch.state.policy);
     expect(violation).not.toBeNull();

@@ -7,10 +7,11 @@ import { formatCost } from '../sim/economy';
 import { assertStateValid, step } from '../sim/engine';
 import { roadIndex } from '../sim/pathfinding';
 import { deserialize, serialize } from '../sim/save';
-import { checkScenarioPolicy, createScenarioWorld } from '../sim/scenarios';
+import { createScenarioWorld } from '../sim/scenarios';
 import { foundingBlocker, getSettlement } from '../sim/settlements';
 import { planRoute } from '../sim/systems/trade';
-import type { BranchResult } from '../sim/compare';
+import { validateBranchAdoption, type BranchResult } from '../sim/compare';
+import { invalidateForecast } from '../ui/panels';
 import type { BuildingType, GameMode, GenParams, WorldState } from '../sim/types';
 import { PlanetView } from '../render/PlanetView';
 import { Hud } from '../ui/Hud';
@@ -103,6 +104,7 @@ export class App {
 
   load(state: WorldState): void {
     assertStateValid(state);
+    invalidateForecast();
     this.state = state;
     this.selectedCell = -1;
     this.tool = { kind: 'inspect' };
@@ -188,33 +190,11 @@ export class App {
   }
 
   adoptBranch(branch: BranchResult): boolean {
-    if (this.state.mode === 'observer') {
-      this.hud.toast('Observer mode cannot adopt a strategy.', 'warn');
+    const val = validateBranchAdoption(this.state, branch);
+    if (!val.canAdopt) {
+      this.hud.toast(val.reason || 'Cannot adopt strategy.', 'bad');
       this.audio.play('invalid');
       return false;
-    }
-    if (this.state.scenario) {
-      if (this.state.scenario.status !== 'active') {
-        this.hud.toast('Cannot adopt strategy: current scenario has already ended.', 'warn');
-        this.audio.play('invalid');
-        return false;
-      }
-      if (!branch.state.scenario || branch.state.scenario.id !== this.state.scenario.id) {
-        this.hud.toast('Cannot adopt strategy: forecast belongs to a different scenario.', 'bad');
-        this.audio.play('invalid');
-        return false;
-      }
-      if (branch.state.scenario.status !== 'active') {
-        this.hud.toast('Cannot adopt strategy: forecast branch reached a terminal state.', 'bad');
-        this.audio.play('invalid');
-        return false;
-      }
-      const violation = checkScenarioPolicy(this.state, branch.state.policy);
-      if (violation) {
-        this.hud.toast(`Cannot adopt strategy: ${violation}`, 'bad');
-        this.audio.play('invalid');
-        return false;
-      }
     }
     try {
       this.load(branch.state);

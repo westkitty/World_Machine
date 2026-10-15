@@ -272,6 +272,24 @@ Scenario policy constraints and lifecycle boundaries are enforced authoritativel
 - **Forecast adoption boundary (`src/app/App.ts`)**: `adoptBranch` strictly validates scenario identity, active status, and scenario policy compliance before allowing a world to adopt future branches.
 - Verified via automated test suite in `tests/scenario_constraints.test.ts`.
 
+## Forecast ownership and adoption integrity (P001)
+
+Strategy comparisons ("Fork the future" in `src/sim/compare.ts` and `src/ui/panels.ts`) simulate hypothetical branch worlds. To prevent timeline corruptions, state transplantation, and silent rewinding, strict forecast ownership and adoption boundaries are enforced:
+- **Origin binding & fork semantics**: Every forecast branch (`runBranch`) records `originSeed`, `originTick`, `originFingerprint`, `forecastTicks`, and `fork: ForkSemantics` capturing `originDate`, `targetTick`, `horizonMonths`, and `rulesetSummary`.
+- **Deterministic 32-bit FNV-1a state fingerprint**: `computeStateFingerprint(state)` produces a fast, deterministic hash over seed, tick, mode, scenario status, rules, policy, settlement count, population, building count, route count, and entity IDs.
+- **Strict adoption validation (`validateBranchAdoption`)**:
+  - Rejects observer mode.
+  - Rejects seed mismatch (forecast belonging to a different world seed).
+  - Rejects tick progression (active world has ticked forward past the forecast origin tick, preventing silent time rewinding).
+  - Rejects fingerprint mutation (active world mutated via policy, command, or rule edit since comparison was computed).
+  - Rejects completed scenarios (active scenario has already ended).
+  - Rejects mismatched scenario identity.
+  - Rejects terminal forecast states (forecast reached failure/success).
+  - Rejects scenario policy violations.
+- **Forecast invalidation on world lifecycle**: `invalidateForecast()` is called upon `App.load`, `newGame`, `restart`, and after successful branch adoption, ensuring old forecasts never linger across world changes.
+- **UI reflection**: `compareTable` displays an explicit fork semantics callout with origin seed, date, horizon, and fingerprint, and disables Adopt buttons with actionable explanations whenever adoption is invalid.
+- Verified via automated test suite in `tests/forecast_integrity.test.ts`.
+
 ## Rendering and performance
 
 - One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom

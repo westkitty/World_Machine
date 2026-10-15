@@ -1,6 +1,6 @@
 import type { App } from '../app/App';
 import { BUILDINGS, GOOD_LABEL, TECHS } from '../sim/constants';
-import { compareStrategies, type BranchResult } from '../sim/compare';
+import { compareStrategies, validateBranchAdoption, type BranchResult } from '../sim/compare';
 import { formatCost, scaledCost, storageCap, totalInventory, inTransit } from '../sim/economy';
 import { settlementSuitability } from '../sim/formulas';
 import { monthlyNeeds, reserveTarget } from '../sim/needs';
@@ -433,6 +433,11 @@ export function comparePanel(app: App): HTMLElement {
   );
 }
 
+export function invalidateForecast(): void {
+  compareResult = null;
+  compareTick = -1;
+}
+
 function compareTable(app: App, [A, B]: [BranchResult, BranchResult]): HTMLElement {
   const rows: [string, (r: BranchResult) => number, (v: number) => string, boolean][] = [
     ['Population', (r) => r.metrics.population, n0, true],
@@ -447,14 +452,28 @@ function compareTable(app: App, [A, B]: [BranchResult, BranchResult]): HTMLEleme
   const better = (a: number, b: number, up: boolean) => (Math.abs(a - b) < 1e-9 ? '' : (a > b) === up ? 'pos' : 'neg');
   const adopt = (r: BranchResult) => {
     if (app.adoptBranch(r)) {
-      compareResult = null;
+      invalidateForecast();
     }
   };
+  const valA = validateBranchAdoption(app.state, A);
+  const valB = validateBranchAdoption(app.state, B);
+
+  const forkBox = h('div.callout',
+    h('div', h('b', 'Fork semantics: '), `${A.fork.originDate} (month ${A.fork.originTick}) → ${A.fork.horizonMonths} mo horizon`),
+    h('div.muted', `Origin: seed “${A.fork.originSeed}” · ${A.fork.rulesetSummary} · ${A.fork.originFingerprint}`),
+    !valA.canAdopt && !valB.canAdopt ? h('div.warnline', { style: { marginTop: '4px' } }, valA.reason || valB.reason) : null,
+  );
+
   return h('div',
+    forkBox,
     h('table.data', h('thead', h('tr', h('th', 'Metric'), h('th', 'A'), h('th', 'B'))),
       h('tbody', ...rows.map(([label, get, fmt, up]) => h('tr', h('th', label), h('td', { class: better(get(A), get(B), up) }, fmt(get(A))), h('td', { class: better(get(B), get(A), up) }, fmt(get(B))))))),
     lineChart([{ values: A.series, color: '#7fd8c0', label: 'A population' }, { values: B.series, color: '#f0a63e', label: 'B population' }], { format: compact, height: 100 }),
-    h('div.actions', button('Adopt A', () => adopt(A), { kind: 'ghost' }), button('Adopt B', () => adopt(B), { kind: 'ghost' })));
+    h('div.actions',
+      button('Adopt A', () => adopt(A), { kind: 'ghost', disabled: valA.canAdopt ? false : (valA.reason || 'Cannot adopt') }),
+      button('Adopt B', () => adopt(B), { kind: 'ghost', disabled: valB.canAdopt ? false : (valB.reason || 'Cannot adopt') }),
+    ),
+  );
 }
 
 export const PANELS: Record<TabId, (app: App) => HTMLElement> = {
