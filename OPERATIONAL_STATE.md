@@ -43,7 +43,8 @@ bun run build
   - CP08 (P004): Modal/time/keyboard coherence (accumulator preservation across pause/resume, modal focus trapping/return, focused button suppression).
 - **Phase F1 (Proof Factory) In Progress (CP09–CP16)**:
   - CP09 (P007): Automated real-browser journeys verified via Playwright (`tests/e2e/journeys.spec.ts`). 14/14 journeys pass across Desktop Chrome and mobile touch emulation (Pixel 7).
-- **117/117 automated Vitest tests** passing across 10 suites (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`, `tests/forecast_integrity.test.ts`, `tests/modal_time_keyboard.test.ts`).
+  - CP10 (P008): Performance and lifecycle budgets established and verified via `tests/bench.test.ts` (`bun run sim:bench`) and `src/sim/budgets.ts`. All 7 performance budget suites pass.
+- **124/124 automated Vitest tests** passing across 11 suites.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
@@ -59,4 +60,4 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP10 (P008: Performance and lifecycle budgets)**: establish performance benchmark assertions and lifecycle memory budgets.
+Proceed with **Checkpoint CP11 (P073: Seeded property-based testing)**: generate reproducible seeded worlds and legal command sequences to fuzz conservation, ranges, and state continuity.

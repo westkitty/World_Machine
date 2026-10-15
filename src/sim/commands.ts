@@ -103,6 +103,7 @@ function executeCommand(state: WorldState, cmd: Command): CommandResult {
       return { ok: true, message: r.goods.length ? `Route now carries ${r.goods.join(', ')}.` : 'Route carries nothing until goods are selected.' };
     }
     case 'policy': {
+      if (!cmd.patch || typeof cmd.patch !== 'object') return fail('Policy patch must be an object.');
       const scenarioBlocker = checkScenarioPolicy(state, cmd.patch);
       if (scenarioBlocker) return fail(scenarioBlocker);
       const p = { ...state.policy, ...cmd.patch };

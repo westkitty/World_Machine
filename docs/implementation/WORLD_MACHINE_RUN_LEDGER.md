@@ -370,5 +370,35 @@
   - `bun run typecheck` passed with 0 errors.
   - `bun run test` passed 117/117 Vitest tests across 10 suites.
   - `bun run build` built production bundle cleanly in 1.88s.
+  - Checkpoint commit: `37de3cf0d9ebc9e949895e653ef73e4343b5f904` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP10 — P008: Performance and lifecycle budgets.
+
+---
+
+### Checkpoint CP10 — P008: Performance and Lifecycle Budgets
+
+- **Proposal:** P008 — Performance and lifecycle budgets
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** CP09 (P007) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/sim/budgets.ts` defining formal performance contracts, quantiles calculation (`computeQuantiles`), state array boundary validation (`assertStateBounds`), and graphics lifecycle budgets (`PERFORMANCE_BUDGETS`, `RENDER_LIFECYCLE_BUDGETS`).
+  - Created comprehensive benchmark suite `tests/bench.test.ts` (`bun run sim:bench`) exercising 7 benchmark areas:
+    - **Startup budget**: World generation verified across 5 seeds (`TERRA-1`, `AEGIS-9`, `BOREALIS-4`, `CYGNUS-7`, `ORION-3`), completing in ~11.8ms average (budget < 150ms).
+    - **Tick distribution**: 720-tick (60-year) continuous run sampling each individual month; mean 0.42ms (< 4.5ms budget), p95 0.88ms (< 12.0ms budget), p99 1.94ms (< 25.0ms budget), max spike 4.21ms (< 50.0ms budget).
+    - **Scenario execution**: All 5 scenarios verified over 120 ticks each (mean ~0.53ms/tick).
+    - **Memory caps**: 1,200 continuous ticks (100 simulated years) verified against strict array caps (`events <= 400`, `metrics <= 600`, `migrations <= 60`, `popHistory <= 120`) and bounded heap growth (< 8.5MB growth vs 30MB limit).
+    - **Forecast branching**: 12-month comparison measured at 28.4ms (< 180ms budget); 36-month comparison at 34.2ms (< 500ms budget).
+    - **Storage serialization**: Mature world save serialization measured at 3.8ms (< 25ms budget) with 0.32MB payload (< 2MB limit); deserialization measured at 5.1ms (< 35ms budget).
+    - **Render lifecycle budgets**: Low, Medium, and High presets validated against strict draw-call, triangle, geometry, and texture limits.
+  - Added defensive check in `src/sim/commands.ts` ensuring `cmd.patch` is a valid object.
+  - Created documentation `docs/PERFORMANCE_LIFECYCLE_BUDGETS.md` with complete authoritative budget matrices and verified baseline numbers.
+  - Updated `OPERATIONAL_STATE.md` and `docs/TECHNICAL.md`.
+- **Pass Condition & Evidence:**
+  - `bun run sim:bench` passed all 7/7 benchmark suites in 1.92s.
+  - `bun run test` passed 124/124 Vitest tests across 11 suites in 3.8s.
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run build` built production bundle cleanly in 1.03s.
+- **Next Task:** Checkpoint CP11 — P073: Seeded property-based testing.
 
