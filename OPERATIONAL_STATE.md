@@ -53,15 +53,16 @@ bun run build
 - **Phase F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery) In Progress (CP17–CP23)**:
   - CP17 (P005): Stop unnecessary renderer rebuilding verified via `src/render/PlanetView.ts`, `tests/render_diff.test.ts`, and Playwright E2E `Journey 8`. Diffed `ViewOptions` and seeds prevent redundant cloud canvas fBm generation, star particle mesh regeneration, and canvas resize on nonvisual or identical quality settings.
   - CP18 (P006): Nonblocking strategy comparison verified via `src/sim/forecast.worker.ts`, `src/sim/forecast_service.ts`, `tests/forecast_worker.test.ts`, and Playwright E2E `Journey 9`. Offloads clone and simulation stepping to a background Web Worker with live progress telemetry, in-flight cancellation, origin fingerprint validation, and automatic staleness discard when the world clock advances or state mutates.
-- **174/174 automated Vitest tests** passing across 19 suites.
+  - CP19 (P077): WebGL context-loss recovery verified via `src/render/PlanetView.ts`, `tests/context_loss.test.ts`, and Playwright E2E `Journey 10`. Recreates GPU resources on restoration, disposes old composer and bloom pass render targets, invalidates cache signatures, marks textures/materials for re-upload, suspends invalid draws, and preserves camera orientation, controls target, and selected cell across repeated loss cycles while simulation ticks advance uninterrupted.
+- **177/177 automated Vitest tests** passing across 20 suites.
 - **7/7 performance benchmark suites** passing in < 1.4s.
-- **18/18 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
+- **20/20 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
 ## Unverified / known gaps
 
 See `docs/KNOWN_LIMITATIONS.md`. Chiefly: real FPS, real mobile hardware, audio output,
-file-dialog export/import, WebGL context restore, Firefox/Safari.
+file-dialog export/import, Firefox/Safari.
 
 ## Repository
 
@@ -70,5 +71,5 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP19 (P077: WebGL context-loss recovery)**: recreate GPU resources on context restoration, suspend invalid draws during loss, and restore camera/selection state without resource duplication.
+Proceed with **Checkpoint CP20 (P078: Evidence-driven rendering performance)**: optimize idle updates, DPR/effects quality, heavy globe paints and costly transitions using p95 frame and memory measurements.
 

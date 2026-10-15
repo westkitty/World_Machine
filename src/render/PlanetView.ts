@@ -185,6 +185,9 @@ export class PlanetView {
   selectedCell = -1;
   options: ViewOptions;
   contextLost = false;
+  contextLossCount = 0;
+  contextRestoreCount = 0;
+  lastState: WorldState | null = null;
   rebuildStats = {
     cloudBuilds: 0,
     skyBuilds: 0,
@@ -212,8 +215,17 @@ export class PlanetView {
     container.appendChild(this.renderer.domElement);
     this.renderer.domElement.setAttribute('aria-label', 'Planet view: drag to rotate, scroll or pinch to zoom, click or tap a region to select it');
     this.renderer.domElement.setAttribute('role', 'application');
-    this.renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; this.onContextChange(true); });
-    this.renderer.domElement.addEventListener('webglcontextrestored', () => { this.contextLost = false; this.onContextChange(false); });
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      if (!this.contextLost) {
+        this.contextLost = true;
+        this.contextLossCount++;
+        this.onContextChange(true);
+      }
+    });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => {
+      this.recoverFromContextLoss();
+    });
 
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.01, 200);
     this.camera.position.set(0.9, 1.1, 3.6);
@@ -356,6 +368,8 @@ export class PlanetView {
 
   /** Build (or rebuild) everything that depends on the world's geometry. */
   syncWorld(state: WorldState, force = false): void {
+    this.lastState = state;
+    if (this.contextLost) return;
     const key = state.seed + JSON.stringify(state.params) + QUALITY[this.options.quality].level;
     if (!force && this.planet && this.seed === key) {
       this.syncTick(state);
@@ -380,6 +394,8 @@ export class PlanetView {
 
   /** Update every state-derived layer after a simulation tick. */
   syncTick(state: WorldState): void {
+    this.lastState = state;
+    if (this.contextLost) return;
     if (!this.planetData) return;
     paintPlanet(state, this.planetData, { overlay: this.overlay, showBorders: this.showBorders, selected: this.selectedCell });
     paintLights(state, this.planetData);
@@ -710,6 +726,7 @@ export class PlanetView {
 
   /** Called every animation frame. `tickPhase` ∈ [0,1) interpolates shipments between ticks. */
   frame(dt: number, state: WorldState, tickPhase: number): void {
+    this.lastState = state;
     if (this.contextLost) return;
     this.renderer.info.reset();
     const motion = this.options.reducedMotion ? 0 : 1;
@@ -865,6 +882,7 @@ export class PlanetView {
 
   /** Map a pointer position to the simulation cell under it (−1 for space). */
   pick(clientX: number, clientY: number): number {
+    if (this.contextLost) return -1;
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
     const ray = new THREE.Raycaster();
@@ -933,6 +951,133 @@ export class PlanetView {
   }
 
   // ---------------------------------------------------------------- quality & lifecycle
+
+  /**
+   * Recreates GPU resources and rebinds materials/textures when the WebGL context is restored (P077).
+   * Ensures zero resource leaks, invalid draw calls, or duplicated GPU objects.
+   */
+  recoverFromContextLoss(): void {
+    this.contextRestoreCount++;
+    this.contextLost = false;
+
+    // Reset signatures so caches don't prevent re-initialization
+    this.cloudSignature = '';
+    this.skySignature = '';
+    this.currentDpr = -1;
+    this.seed = '';
+    this.routeSignature = '';
+
+    // Dispose old composer passes with invalid render targets
+    if (this.composer) {
+      this.composer.dispose();
+      this.composer = null;
+      this.bloom = null;
+    }
+
+    // Force re-apply quality (recreates composer and bloom pass with new WebGLRenderTargets, rebuilds sky)
+    this.applyQuality(true);
+
+    // Recreate ocean and atmosphere geometries so no stale GL buffer references remain
+    this.ocean.geometry.dispose();
+    this.ocean.geometry = new THREE.IcosahedronGeometry(1.0, 48);
+    this.atmosphere.geometry.dispose();
+    this.atmosphere.geometry = new THREE.IcosahedronGeometry(1.16, 24);
+
+    // Force textures to re-upload to restored GL context
+    this.wetTexture.needsUpdate = true;
+    if (this.cloudTexture) {
+      this.cloudTexture.needsUpdate = true;
+    }
+
+    // Force materials to recompile shaders on the new GL context
+    this.planetMat.needsUpdate = true;
+    this.oceanMat.needsUpdate = true;
+    this.atmosphereMat.needsUpdate = true;
+    this.glowMat.needsUpdate = true;
+    this.routeMat.needsUpdate = true;
+    this.migrationMat.needsUpdate = true;
+    this.zoneMat.needsUpdate = true;
+    this.selMat.needsUpdate = true;
+    this.hoverMat.needsUpdate = true;
+    for (const m of this.lineMats) {
+      m.needsUpdate = true;
+    }
+    for (const mesh of this.buildingMeshes.values()) {
+      (mesh.material as THREE.Material).needsUpdate = true;
+    }
+    (this.settlementMesh.material as THREE.Material).needsUpdate = true;
+
+    // Reconstruct world meshes and layers if state is available
+    if (this.lastState) {
+      this.syncWorld(this.lastState, true);
+    }
+
+    // Restore active selection outline if a cell was selected
+    if (this.selectedCell >= 0) {
+      this.setOutline(this.selection, this.selectedCell);
+    }
+
+    // Resize to ensure projection and viewports match canvas
+    this.resize();
+
+    this.onContextChange(false);
+  }
+
+  /**
+   * Triggers synthetic context loss using the WEBGL_lose_context extension (P077).
+   * Returns true if loss was initiated or simulated.
+   */
+  loseContext(): boolean {
+    if (this.contextLost) return false;
+    try {
+      const gl = this.renderer.getContext();
+      const ext = gl?.getExtension('WEBGL_lose_context');
+      if (ext) {
+        ext.loseContext();
+        return true;
+      }
+    } catch {
+      // In non-WebGL or mocked environments
+    }
+    // Fallback if extension not present or in mocked test environment:
+    this.contextLost = true;
+    this.contextLossCount++;
+    this.onContextChange(true);
+    return true;
+  }
+
+  /**
+   * Triggers context restoration using the WEBGL_lose_context extension (P077).
+   * Returns true if restoration was initiated or simulated.
+   */
+  restoreContext(): boolean {
+    if (!this.contextLost) return false;
+    try {
+      const gl = this.renderer.getContext();
+      const ext = gl?.getExtension('WEBGL_lose_context');
+      if (ext) {
+        ext.restoreContext();
+        return true;
+      }
+    } catch {
+      // In non-WebGL or mocked environments
+    }
+    // Fallback if extension not present or in mocked test environment:
+    this.recoverFromContextLoss();
+    return true;
+  }
+
+  /**
+   * Runs a full synthetic loss and restore cycle (P077).
+   */
+  async simulateContextLossCycle(durationMs = 50): Promise<boolean> {
+    const lost = this.loseContext();
+    if (!lost) return false;
+    if (durationMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, durationMs));
+    }
+    return this.restoreContext();
+  }
 
   setOptions(options: ViewOptions, state: WorldState): void {
     this.rebuildStats.setOptionsCalls++;

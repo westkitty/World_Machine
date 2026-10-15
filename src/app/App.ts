@@ -79,8 +79,11 @@ export class App {
     this.view.onAdaptiveQuality = (msg) => this.hud?.toast(msg, 'warn');
     this.view.showBorders = this.settings.showBorders;
     this.view.onContextChange = (lost) => {
-      this.hud.toast(lost ? 'Graphics context lost — the simulation continues; restoring…' : 'Graphics restored.', lost ? 'warn' : 'good');
-      if (!lost) this.view.syncWorld(this.state, true);
+      this.hud?.toast(lost ? 'Graphics context lost — the simulation continues; restoring…' : 'Graphics restored.', lost ? 'warn' : 'good');
+      if (!lost) {
+        this.view.syncWorld(this.state);
+        this.hud?.refresh(true);
+      }
     };
     this.hud = new Hud(this);
     this.forecast.subscribe(() => {

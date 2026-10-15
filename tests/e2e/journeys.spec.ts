@@ -321,5 +321,123 @@ test.describe('The World Machine — Automated Browser Journeys (P007)', () => {
     await expect(page.locator('text=The active world has advanced or changed')).toBeVisible({ timeout: 5000 });
     await expect(adoptA).toBeDisabled();
   });
+
+  test('Journey 10: WebGL context-loss recovery and simulation continuity (P077)', async ({ page }) => {
+    // 1. Dismiss title screen if visible
+    const modal = page.locator('.modal.open');
+    if (await modal.isVisible()) {
+      const startBtn = page.locator('button:has-text("Generate & begin")');
+      if (await startBtn.isVisible()) {
+        await startBtn.click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
+      await expect(page.locator('.modal.open')).not.toBeVisible();
+    }
+
+    // 2. Select a cell and settle camera (cancel initial flight animation)
+    const initialCell = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.view.focusAnim = null;
+      app.view.cinematic = false;
+      app.view.controls.autoRotate = false;
+      app.view.noteInput();
+      const first = app.state.settlements.find((s: any) => s.alive);
+      const cellId = first ? first.cellId : 10;
+      app.select(cellId, false);
+      return cellId;
+    });
+
+    const preLossState = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      const cam = app.view.camera.position;
+      const target = app.view.controls.target;
+      return {
+        tick: app.state.tick,
+        selectedCell: app.view.selectedCell,
+        camPos: { x: cam.x, y: cam.y, z: cam.z },
+        targetPos: { x: target.x, y: target.y, z: target.z },
+        lossCount: app.view.contextLossCount,
+        restoreCount: app.view.contextRestoreCount,
+        contextLost: app.view.contextLost,
+      };
+    });
+
+    expect(preLossState.contextLost).toBe(false);
+    expect(preLossState.selectedCell).toBe(initialCell);
+
+    // 2. Trigger synthetic context loss
+    const lostTriggered = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return app.view.loseContext();
+    });
+    expect(lostTriggered).toBe(true);
+
+    // Context is marked lost
+    await page.waitForFunction(() => (window as any).worldMachine.view.contextLost === true);
+
+    // Toast notification appears
+    await expect(page.locator('.toast.warn')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.toast.warn')).toContainText('Graphics context lost');
+
+    // 3. Advance simulation during context loss (authoritative simulation continues)
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.stepOnce();
+      app.stepOnce();
+    });
+
+    const duringLossTick = await page.evaluate(() => (window as any).worldMachine.state.tick);
+    expect(duringLossTick).toBe(preLossState.tick + 2);
+
+    // 4. Restore context
+    const restoreTriggered = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return app.view.restoreContext();
+    });
+    expect(restoreTriggered).toBe(true);
+
+    // Context restored
+    await page.waitForFunction(() => (window as any).worldMachine.view.contextLost === false);
+
+    // Toast indicates restoration
+    await expect(page.locator('.toast.good')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.toast.good')).toContainText('Graphics restored');
+
+    // 5. Verify camera orientation, controls target, and selected cell are preserved
+    const postRestoreState = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      const cam = app.view.camera.position;
+      const target = app.view.controls.target;
+      const stats = app.view.stats();
+      return {
+        tick: app.state.tick,
+        selectedCell: app.view.selectedCell,
+        camPos: { x: cam.x, y: cam.y, z: cam.z },
+        targetPos: { x: target.x, y: target.y, z: target.z },
+        restoreCount: app.view.contextRestoreCount,
+        drawCalls: stats.calls,
+        triangles: stats.triangles,
+      };
+    });
+
+    expect(postRestoreState.restoreCount).toBeGreaterThan(preLossState.restoreCount);
+    expect(postRestoreState.selectedCell).toBe(initialCell);
+    expect(Math.abs(postRestoreState.camPos.x - preLossState.camPos.x)).toBeLessThan(1e-4);
+    expect(Math.abs(postRestoreState.camPos.y - preLossState.camPos.y)).toBeLessThan(1e-4);
+    expect(Math.abs(postRestoreState.camPos.z - preLossState.camPos.z)).toBeLessThan(1e-4);
+    expect(Math.abs(postRestoreState.targetPos.x - preLossState.targetPos.x)).toBeLessThan(1e-4);
+    expect(Math.abs(postRestoreState.targetPos.y - preLossState.targetPos.y)).toBeLessThan(1e-4);
+    expect(Math.abs(postRestoreState.targetPos.z - preLossState.targetPos.z)).toBeLessThan(1e-4);
+
+    // 6. Perform a second loss/restore cycle to verify repeated recovery stability
+    await page.evaluate(() => (window as any).worldMachine.view.loseContext());
+    await page.waitForFunction(() => (window as any).worldMachine.view.contextLost === true);
+    await page.evaluate(() => (window as any).worldMachine.view.restoreContext());
+    await page.waitForFunction(() => (window as any).worldMachine.view.contextLost === false);
+
+    const finalRestoreCount = await page.evaluate(() => (window as any).worldMachine.view.contextRestoreCount);
+    expect(finalRestoreCount).toBe(preLossState.restoreCount + 2);
+  });
 });
 

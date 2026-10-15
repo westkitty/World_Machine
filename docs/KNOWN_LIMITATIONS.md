@@ -28,8 +28,8 @@
   see `docs/VALIDATION.md` for CPU-side timings. No mobile-device testing.
 - **Automated browser tests active (P007/CP09).** Automated real-browser journeys are verified via Playwright (`bun run test:e2e`) across Desktop Chromium and mobile touch (Pixel 7 emulation), testing boot/start, tab navigation, clock controls, strategy comparison with fork semantics, overwrite protections, and scenario constraints.
 - **Audio** was never listened to; it is restrained procedural synthesis, not composed music.
-- **Export/Import** through real file dialogs, **WebGL context loss/restore**, Firefox and
-  Safari were not exercised.
+- **Export/Import** through real native OS file dialogs, Firefox and Safari were not exercised.
+- **WebGL context-loss recovery active (P077/CP19).** WebGL context loss and recovery are verified across Desktop Chromium and Pixel 7 mobile touch emulation via Playwright (`tests/e2e/journeys.spec.ts`, Journey 10), preserving simulation continuity, camera orientation, and active selection with zero shader errors or resource duplication.
 - **Camera bookmarks** store on first click (empty slot) or Shift-click; there is no visible
   indicator of which slots are filled.
 - **Bloom cost.** Bloom adds ~15 draw calls of full-screen passes on Medium/High. The
@@ -40,8 +40,7 @@
   Settings for a physical day/night cycle (season-aware declination).
 - **No screen shake or hit-stop.** Deliberately omitted for a slow strategic globe (motion
   comfort); emphasis comes from ripples, particles, bloom, sound and toasts instead.
-- **Comparison runs synchronously** on the main thread: a 10-year comparison briefly blocks
-  the UI (≈ 1 s on a fast laptop with ~20 settlements).
+- **Nonblocking strategy comparison active (P006/CP18).** Clone and forecast processing run in a background Web Worker (`forecast.worker.ts`) with live progress reporting, in-flight cancellation, and automatic staleness detection.
 - **Balance.** Scenario thresholds were tuned against scripted strategies; human players may
   find some easier or harder. The reference sandbox world tends toward abundance in its
   first decades; scarcity arrives through growth, soil exhaustion, crises and policy.

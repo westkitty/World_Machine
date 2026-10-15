@@ -757,6 +757,55 @@
   - `bun run test:e2e` passed all 18/18 Playwright real-browser journeys across Desktop Chromium and Pixel 7 mobile touch emulation.
 - **Next Task:** Checkpoint CP19 — P077: WebGL context-loss recovery.
 
+---
+
+### Checkpoint CP19 — P077: WebGL Context-Loss Recovery
+
+- **Proposal:** P077 — WebGL context-loss recovery
+- **Phase:** F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** P007 completed, `feat/world-machine-f2` active
+- **Implementation Packet:**
+  - Extended `src/render/PlanetView.ts`:
+    - Added state tracking properties: `contextLossCount: number`, `contextRestoreCount: number`, `lastState: WorldState | null`.
+    - Updated `webglcontextlost` event listener: prevents default browser abort behavior, increments `contextLossCount`, sets `contextLost = true`, and notifies `onContextChange(true)`.
+    - Updated `webglcontextrestored` event listener: delegates to `recoverFromContextLoss()`.
+    - Implemented `recoverFromContextLoss()`:
+      - Increments `contextRestoreCount` and sets `contextLost = false`.
+      - Invalidates cached resource signatures (`cloudSignature = ''`, `skySignature = ''`, `currentDpr = -1`, `seed = ''`, `routeSignature = ''`).
+      - Safely disposes and clears invalid `EffectComposer` and `UnrealBloomPass` instances to prevent rendering with dead `WebGLRenderTarget` framebuffers.
+      - Recreates clean ocean (`IcosahedronGeometry(1.0, 48)`) and atmosphere (`IcosahedronGeometry(1.16, 24)`) geometries.
+      - Marks data textures (`wetTexture.needsUpdate = true`, `cloudTexture.needsUpdate = true`) and all materials (`planetMat`, `oceanMat`, `atmosphereMat`, `glowMat`, `routeMat`, `migrationMat`, `zoneMat`, `selMat`, `hoverMat`, `buildingMeshes`, `settlementMesh`, `lineMats`) with `needsUpdate = true` for re-upload and shader recompilation in the restored GL context.
+      - Re-applies quality settings (`applyQuality(true)`) to reconstruct composer passes and sky dome on the new context.
+      - Reconstructs world meshes and line segments if `lastState` is present (`syncWorld(this.lastState, true)`).
+      - Rebinds active selection outline if a cell was selected (`setOutline(this.selection, this.selectedCell)`).
+      - Re-issues `resize()` to synchronize projection matrices and viewport dimensions.
+      - Dispatches `onContextChange(false)`.
+    - Added helper methods for synthetic testing and recovery simulation:
+      - `loseContext(): boolean`: leverages `WEBGL_lose_context` extension or synthetic event dispatch fallback.
+      - `restoreContext(): boolean`: triggers `WEBGL_lose_context` extension or direct recovery fallback.
+      - `simulateContextLossCycle(durationMs = 50): Promise<boolean>`: runs automated loss and restore cycles.
+    - Guarded `syncWorld`, `syncTick`, `frame`, and `pick` against invalid calls during context loss.
+  - Updated `src/app/App.ts`:
+    - Updated `onContextChange` handler to toast graphics status ("Graphics context lost — the simulation continues; restoring…", "Graphics restored."), call non-forced `syncWorld(this.state)`, and refresh HUD without redundant mesh rebuilds.
+  - Created unit test suite `tests/context_loss.test.ts` (3 tests):
+    - `simulation continuity`: Verified that the simulation state evolves 100% identically whether graphics frames run continuously or are suspended during context loss.
+    - `forecast branches`: Verified that deterministic forecast branches remain unaffected and match byte-for-byte during simulated loss.
+    - `signature invalidation`: Verified that resetting signatures to empty strings triggers full resource rebuilding on recovery.
+  - Updated `tests/e2e/journeys.spec.ts`:
+    - Added `Journey 10: WebGL context-loss recovery and simulation continuity (P077)`.
+    - Verified synthetic context loss via `app.view.loseContext()`, loss toast notification, uninterrupted simulation tick progression while context is lost, restoration via `app.view.restoreContext()`, restored toast, strict preservation of camera position, orientation, and controls target, intact cell selection outline, resumed draw calls, and repeated loss/recovery cycle stability across Desktop Chromium and Pixel 7 mobile touch emulation.
+  - Updated `docs/KNOWN_LIMITATIONS.md` and `OPERATIONAL_STATE.md`.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 177/177 Vitest tests across 20 suites in 4.52s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.14s.
+  - `bun run build` built production bundle in 1.17s.
+  - `bun run test:e2e` passed all 20/20 Playwright real-browser journeys across Desktop Chromium and Pixel 7 mobile touch emulation in 4.0m.
+- **Next Task:** Checkpoint CP20 — P078: Evidence-driven rendering performance.
+
+
 
 
 
