@@ -4,7 +4,7 @@ import { compareStrategies, type BranchResult } from '../sim/compare';
 import { formatCost, scaledCost, storageCap, totalInventory, inTransit } from '../sim/economy';
 import { settlementSuitability } from '../sim/formulas';
 import { monthlyNeeds, reserveTarget } from '../sim/needs';
-import { SCENARIOS, getScenario } from '../sim/scenarios';
+import { SCENARIOS, checkScenarioPolicy, getScenario } from '../sim/scenarios';
 import { getSettlement, liveSettlements, territoryOf } from '../sim/settlements';
 import { CRISIS_INFO } from '../sim/systems/crises';
 import { relationKey } from '../sim/systems/trade';
@@ -255,8 +255,12 @@ export function policyPanel(app: App): HTMLElement {
   const p = s.policy;
   const dis = blocked(app);
   const set = (patch: Partial<Policy>) => app.run({ type: 'policy', patch }, 'click');
-  const radio = <K extends keyof Policy>(key: K, options: [Policy[K], string, string][]) => h('div.seg', { role: 'radiogroup' }, ...options.map(([v, label, hint]) =>
-    button(label, () => set({ [key]: v } as Partial<Policy>), { kind: p[key] === v ? 'on' : 'ghost', disabled: dis, title: hint, ariaPressed: p[key] === v })));
+  const radio = <K extends keyof Policy>(key: K, options: [Policy[K], string, string][]) => h('div.seg', { role: 'radiogroup' }, ...options.map(([v, label, hint]) => {
+    const scConstraint = checkScenarioPolicy(s, { [key]: v } as Partial<Policy>);
+    const disabledReason = dis || scConstraint || false;
+    const titleText = scConstraint ? `${hint} (${scConstraint})` : hint;
+    return button(label, () => set({ [key]: v } as Partial<Policy>), { kind: p[key] === v ? 'on' : 'ghost', disabled: disabledReason, title: titleText, ariaPressed: p[key] === v });
+  }));
   const funders = liveSettlements(s).sort((a, b) => b.population - a.population);
   return h('div.panel-body',
     h('header.panel-head', h('div.eyebrow', 'Stewardship'), h('h2', 'Policy'), h('p.sub', dis || 'Policies apply planet-wide and take effect next month.')),
@@ -396,7 +400,10 @@ export function comparePanel(app: App): HTMLElement {
   const form = (prefix: string, defaults: Partial<Policy>) => {
     const ext = h('select', { name: `${prefix}-ext`, 'aria-label': `${prefix} extraction` }, ...['restrained', 'normal', 'intensive'].map((v) => h('option', { value: v, selected: defaults.extraction === v }, v)));
     const growth = h('select', { name: `${prefix}-growth`, 'aria-label': `${prefix} growth` }, ...['restrain', 'neutral', 'encourage'].map((v) => h('option', { value: v, selected: defaults.growth === v }, v)));
-    const auto = h('select', { name: `${prefix}-auto`, 'aria-label': `${prefix} autonomy` }, ...['none', 'limited', 'full'].map((v) => h('option', { value: v, selected: defaults.autonomy === v }, v)));
+    const auto = h('select', { name: `${prefix}-auto`, 'aria-label': `${prefix} autonomy` }, ...(['none', 'limited', 'full'] as const).map((v) => {
+      const scConstraint = checkScenarioPolicy(s, { autonomy: v });
+      return h('option', { value: v, selected: defaults.autonomy === v, disabled: !!scConstraint }, scConstraint ? `${v} (${scConstraint})` : v);
+    }));
     const ration = h('input', { type: 'checkbox', name: `${prefix}-ration`, checked: !!defaults.rationing }) as HTMLInputElement;
     return {
       el: h('fieldset.branch', h('legend', `Strategy ${prefix}`), h('label.field', 'Extraction', ext), h('label.field', 'Growth', growth), h('label.field', 'Autonomy', auto), h('label.check', ration, ' Rationing')),
@@ -406,8 +413,10 @@ export function comparePanel(app: App): HTMLElement {
   const a = form('A', { ...s.policy, extraction: 'restrained' });
   const b = form('B', { ...s.policy, extraction: 'intensive', growth: 'encourage' });
   const years = h('select', { 'aria-label': 'Years to simulate' }, ...[1, 3, 5, 10].map((y) => h('option', { value: y, selected: y === 3 }, `${y} year${y > 1 ? 's' : ''}`))) as HTMLSelectElement;
-  const status = h('p.muted', compareResult && compareTick === s.tick ? 'Results are for the current month.' : compareResult ? `Results were computed from ${formatDate(compareTick)}.` : 'Both futures run with the real engine from an exact copy of this world.');
+  const isEnded = s.scenario && s.scenario.status !== 'active';
+  const status = h('p.muted', isEnded ? 'Scenario has ended. Strategy comparison is inactive.' : compareResult && compareTick === s.tick ? 'Results are for the current month.' : compareResult ? `Results were computed from ${formatDate(compareTick)}.` : 'Both futures run with the real engine from an exact copy of this world.');
   const run = () => {
+    if (isEnded) return;
     status.textContent = 'Simulating both futures…';
     setTimeout(() => {
       compareResult = compareStrategies(s, a.read(), b.read(), Number(years.value) * 12);
@@ -418,7 +427,7 @@ export function comparePanel(app: App): HTMLElement {
   return h('div.panel-body',
     h('header.panel-head', h('div.eyebrow', 'Strategy comparison'), h('h2', 'Fork the future'), h('p.sub', 'Same world, same random seed, different policies. Differences come from the policies alone.')),
     h('div.branches', a.el, b.el),
-    h('div.inline', years, button('Run comparison', run)),
+    h('div.inline', years, button('Run comparison', run, { disabled: isEnded ? 'Scenario has ended' : false })),
     status,
     compareResult ? compareTable(app, compareResult) : null,
   );

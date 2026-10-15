@@ -7,7 +7,7 @@ import { formatCost } from '../sim/economy';
 import { assertStateValid, step } from '../sim/engine';
 import { roadIndex } from '../sim/pathfinding';
 import { deserialize, serialize } from '../sim/save';
-import { createScenarioWorld } from '../sim/scenarios';
+import { checkScenarioPolicy, createScenarioWorld } from '../sim/scenarios';
 import { foundingBlocker, getSettlement } from '../sim/settlements';
 import { planRoute } from '../sim/systems/trade';
 import type { BranchResult } from '../sim/compare';
@@ -193,10 +193,28 @@ export class App {
       this.audio.play('invalid');
       return false;
     }
-    if (this.state.scenario && this.state.scenario.status !== 'active') {
-      this.hud.toast('Cannot adopt strategy: scenario has already ended.', 'warn');
-      this.audio.play('invalid');
-      return false;
+    if (this.state.scenario) {
+      if (this.state.scenario.status !== 'active') {
+        this.hud.toast('Cannot adopt strategy: current scenario has already ended.', 'warn');
+        this.audio.play('invalid');
+        return false;
+      }
+      if (!branch.state.scenario || branch.state.scenario.id !== this.state.scenario.id) {
+        this.hud.toast('Cannot adopt strategy: forecast belongs to a different scenario.', 'bad');
+        this.audio.play('invalid');
+        return false;
+      }
+      if (branch.state.scenario.status !== 'active') {
+        this.hud.toast('Cannot adopt strategy: forecast branch reached a terminal state.', 'bad');
+        this.audio.play('invalid');
+        return false;
+      }
+      const violation = checkScenarioPolicy(this.state, branch.state.policy);
+      if (violation) {
+        this.hud.toast(`Cannot adopt strategy: ${violation}`, 'bad');
+        this.audio.play('invalid');
+        return false;
+      }
     }
     try {
       this.load(branch.state);
@@ -231,6 +249,10 @@ export class App {
   }
 
   private runTicks(n: number): void {
+    if (this.state.scenario && this.state.scenario.status !== 'active') {
+      this.clock.setSpeed(0);
+      return;
+    }
     for (let i = 0; i < n; i++) {
       const before = this.state.scenario?.status;
       const t0 = performance.now();

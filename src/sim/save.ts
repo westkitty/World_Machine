@@ -1,6 +1,7 @@
 import { BUILDINGS, TECHS } from './constants';
 import { SAVE_VERSION } from './create';
 import { getTopology } from './topology';
+import { checkScenarioPolicy } from './scenarios';
 import { GOODS, TRADE_GOODS, type WorldState } from './types';
 
 /**
@@ -169,6 +170,10 @@ export function validateState(state: WorldState): void {
     if (typeof sc.challenge !== 'boolean') fail('invalid scenario challenge');
     if (!Number.isInteger(sc.startTick) || sc.startTick < 0) fail('invalid scenario startTick');
     if (!Number.isInteger(sc.deadline) || sc.deadline < 0) fail('invalid scenario deadline');
+    if (sc.status !== 'active' && (!sc.message || typeof sc.message !== 'string')) fail('completed scenario requires message');
+
+    const policyViolation = checkScenarioPolicy(state, state.policy);
+    if (policyViolation) fail(`Scenario constraint violated: ${policyViolation}`);
   }
 }
 

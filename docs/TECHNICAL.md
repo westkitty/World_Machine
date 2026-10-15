@@ -262,6 +262,16 @@ Save management in `src/app/storage.ts` and the UI (`src/ui/menus.ts`) is fully 
 - **Tested recovery routes**: Backups can be restored back into active slots via `restoreBackup(slot)` with reversible swap semantics, or downloaded directly via `exportSlotBackup(slot)`.
 - Verified via automated test suite in `tests/save_protection.test.ts`.
 
+## Authoritative scenario constraints (P003)
+
+Scenario policy constraints and lifecycle boundaries are enforced authoritatively:
+- **Command boundary (`src/sim/commands.ts`)**: Every policy command is checked via `checkScenarioPolicy(state, cmd.patch)`. Prohibited policies (such as modifying autonomy in *First Footprint* away from `limited`, or enabling `full` autonomy in scenarios where independent agreements are forbidden) are rejected with actionable explanations without mutating state.
+- **Completed-scenario transitions**: When a scenario reaches a terminal state (`success` or `failure`), all commands are blocked by `modeBlocker`. Once terminal, scenario status is locked and cannot be overwritten or stepped.
+- **UI reflection (`src/ui/panels.ts`)**: Prohibited policy options in `policyPanel` and `comparePanel` are marked disabled with the exact scenario constraint reason in tooltips.
+- **Save validation & import (`src/sim/save.ts`)**: `validateState` rejects imported saves violating scenario policy constraints or missing explanatory messages on terminal scenario states.
+- **Forecast adoption boundary (`src/app/App.ts`)**: `adoptBranch` strictly validates scenario identity, active status, and scenario policy compliance before allowing a world to adopt future branches.
+- Verified via automated test suite in `tests/scenario_constraints.test.ts`.
+
 ## Rendering and performance
 
 - One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom

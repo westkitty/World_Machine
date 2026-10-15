@@ -4,7 +4,7 @@ import {
 import { pushEvent } from './settlements';
 import { openCrisis } from './systems/crises';
 import { Rng, seedRng } from './rng';
-import { GOODS, type GenParams, type Settlement, type WorldState } from './types';
+import { GOODS, type GenParams, type Policy, type Settlement, type WorldState } from './types';
 
 /**
  * Scenario definitions are data plus pure evaluators. `objectives` must not
@@ -34,6 +34,7 @@ export interface ScenarioDef {
   objectives(state: WorldState): Objective[];
   failure(state: WorldState): string | null;
   risks(state: WorldState): string[];
+  checkPolicyConstraint?(patch: Partial<Policy>, state: WorldState): string | null;
 }
 
 export const CHALLENGE_RULES = {
@@ -173,6 +174,12 @@ export const SCENARIOS: ScenarioDef[] = [
       if (s && s.last.shortage.length) r.push(`Shortages: ${s.last.shortage.join(', ')}.`);
       return r;
     },
+    checkPolicyConstraint(patch) {
+      if (patch.autonomy && patch.autonomy !== 'limited') {
+        return 'First Footprint requires limited autonomy: you direct construction while settlements manage internal affairs.';
+      }
+      return null;
+    },
   },
   {
     id: 'distance_between_us', index: 2, title: 'The Distance Between Us',
@@ -235,6 +242,12 @@ export const SCENARIOS: ScenarioDef[] = [
       for (const route of state.routes) if (!route.active && route.blockedReason) r.push(`Route blocked: ${route.blockedReason}`);
       return r;
     },
+    checkPolicyConstraint(patch) {
+      if (patch.autonomy === 'full') {
+        return 'The Distance Between Us prohibits full autonomy: communities cannot sign independent trade agreements.';
+      }
+      return null;
+    },
   },
   {
     id: 'long_drought', index: 3, title: 'The Long Drought',
@@ -276,6 +289,12 @@ export const SCENARIOS: ScenarioDef[] = [
         if (months < 0.5) r.push(`${s.name}: water reserve ${months.toFixed(1)} months.`);
       }
       return r;
+    },
+    checkPolicyConstraint(patch) {
+      if (patch.autonomy === 'full') {
+        return 'The Long Drought prohibits full autonomy: emergency resource coordination cannot be delegated.';
+      }
+      return null;
     },
   },
   {
@@ -329,6 +348,12 @@ export const SCENARIOS: ScenarioDef[] = [
       if (state.policy.extraction === 'intensive') r.push('Extraction is intensive: harvests exceed regrowth.');
       return r;
     },
+    checkPolicyConstraint(patch) {
+      if (patch.autonomy === 'full') {
+        return 'The Green Threshold prohibits full autonomy: uncontrolled autonomous expansion causes rapid ecological collapse.';
+      }
+      return null;
+    },
   },
   {
     id: 'many_futures', index: 5, title: 'One Planet, Many Futures',
@@ -368,11 +393,34 @@ export const SCENARIOS: ScenarioDef[] = [
     risks(state) {
       return alive(state).filter((s) => foodMonths(s) < 2).map((s) => `${s.name} holds only ${foodMonths(s).toFixed(1)} months of food.`);
     },
+    checkPolicyConstraint(patch) {
+      if (patch.autonomy === 'full') {
+        return 'One Planet, Many Futures prohibits full autonomy: expansion must be coordinated with resource reserves.';
+      }
+      return null;
+    },
   },
 ];
 
 export function getScenario(id: string): ScenarioDef | undefined {
   return SCENARIOS.find((s) => s.id === id);
+}
+
+/**
+ * Validates a policy patch against active scenario constraints.
+ * Returns an actionable explanation if the policy violates the scenario, or null if legal.
+ */
+export function checkScenarioPolicy(state: WorldState, patch: Partial<Policy>): string | null {
+  if (!state.scenario) return null;
+  const def = getScenario(state.scenario.id);
+  if (!def) return null;
+  if (def.checkPolicyConstraint) {
+    return def.checkPolicyConstraint(patch, state);
+  }
+  if (patch.autonomy === 'full') {
+    return `Scenario constraint: ${def.title} prohibits full autonomy.`;
+  }
+  return null;
 }
 
 export function createScenarioWorld(id: string, challenge = false): WorldState {

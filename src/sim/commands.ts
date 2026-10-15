@@ -7,6 +7,7 @@ import { CRISIS_INFO } from './systems/crises';
 import { setKinship } from './systems/migration';
 import { applyPlan, planRoute, relationKey, sendShipment } from './systems/trade';
 import { getTopology, greatCircleKm } from './topology';
+import { checkScenarioPolicy } from './scenarios';
 import {
   GOODS, TRADE_GOODS, type BuildingType, type Good, type Inventory, type LaborFocus, type Policy, type Rules, type Settlement,
   type TechId, type WorldState,
@@ -102,6 +103,8 @@ function executeCommand(state: WorldState, cmd: Command): CommandResult {
       return { ok: true, message: r.goods.length ? `Route now carries ${r.goods.join(', ')}.` : 'Route carries nothing until goods are selected.' };
     }
     case 'policy': {
+      const scenarioBlocker = checkScenarioPolicy(state, cmd.patch);
+      if (scenarioBlocker) return fail(scenarioBlocker);
       const p = { ...state.policy, ...cmd.patch };
       if (cmd.patch.tradePriority) {
         const tp = cmd.patch.tradePriority.filter((g) => TRADE_GOODS.includes(g));

@@ -175,5 +175,55 @@
   - Total automated test suite expanded to 82 tests passing across 7 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`).
   - `bun run typecheck` passed with 0 errors.
   - `bun run build` built cleanly.
-  - Checkpoint commit: `feat(world-machine): CP05 P002 save overwrite/delete protection` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+  - Checkpoint commit: `d1bfae46839961ec0bde357931304a948eb69ffb` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP06 — P003: Scenario constraints authoritative.
+
+---
+
+### Checkpoint CP06 — P003: Scenario Constraints Authoritative
+
+- **Proposal:** P003 — Scenario constraints authoritative
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Repair · S
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP01–CP05 completed
+- **Implementation Packet:**
+  - Extended `src/sim/scenarios.ts`:
+    - Added `checkPolicyConstraint?(patch: Partial<Policy>, state: WorldState): string | null` to `ScenarioDef`.
+    - Implemented specific policy constraint checkers for all 5 scenarios:
+      - `first_footprint`: autonomy strictly locked to `limited` (directing construction).
+      - `distance_between_us`: prohibits `full` autonomy (communities cannot sign independent trade agreements).
+      - `long_drought`: prohibits `full` autonomy (centralized drought emergency coordination required).
+      - `green_threshold`: prohibits `full` autonomy (uncontrolled autonomous expansion causes rapid ecological collapse).
+      - `many_futures`: prohibits `full` autonomy (expansion must be coordinated with resource reserves).
+    - Exported `checkScenarioPolicy(state, patch)`.
+  - Updated `src/sim/commands.ts`:
+    - Enforced `checkScenarioPolicy` in `case 'policy'`: returns actionable explanation upon constraint violation without mutating state.
+    - Updated `modeBlocker` to ensure completed scenarios strictly reject incoming commands.
+  - Updated `src/sim/save.ts`:
+    - Enhanced `validateState` to reject imported saves violating scenario policy constraints (`SaveError`).
+    - Enforced non-empty message on terminal scenario states (`success` or `failure`).
+  - Updated `src/app/App.ts`:
+    - Enhanced `adoptBranch`: verifies scenario identity, blocks adoption into or from terminal scenario states, and validates `checkScenarioPolicy` before allowing branch adoption.
+    - Enhanced `runTicks`: stops clock and skips execution if scenario is in a terminal state.
+  - Updated `src/ui/panels.ts`:
+    - Disabled prohibited policy radio buttons in `policyPanel` with explicit constraint explanations in `title` tooltips.
+    - Enforced scenario constraints and disabled comparisons on completed scenarios in `comparePanel`.
+  - Created test suite `tests/scenario_constraints.test.ts`:
+    - `rejects prohibited autonomy in first_footprint with actionable reason at command boundary`
+    - `rejects full autonomy in distance_between_us where communities cannot sign independent agreements`
+    - `rejects full autonomy in long_drought, green_threshold, and many_futures`
+    - `allows all autonomy settings in unconstrained sandbox worlds`
+    - `completed-scenario transitions are authoritative: terminal scenarios reject all commands`
+    - `save validation and import reject scenario policy constraint violations`
+    - `save validation enforces message on completed scenario states`
+    - `checkScenarioPolicy returns null for compliant policy and actionable string for violation`
+    - `forecast adoption boundary rejects branches that violate scenario policy constraints`
+  - Updated `docs/TECHNICAL.md` with Authoritative scenario constraints section.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/scenario_constraints.test.ts` passed 9/9 tests.
+  - Total automated test suite expanded to 91 tests passing across 8 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`).
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run build` built cleanly.
+  - Checkpoint commit: `feat(world-machine): CP06 P003 scenario constraints authoritative` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+- **Next Task:** Checkpoint CP07 — P001: Forecast ownership and adoption integrity.
