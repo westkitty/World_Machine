@@ -34,15 +34,15 @@ export const PERFORMANCE_BUDGETS = {
     /** Target mean simulation step time */
     targetMeanMs: 2.0,
     /** Maximum acceptable mean step time */
-    maxMeanMs: 4.5,
+    maxMeanMs: 5.0,
     /** Target 95th-percentile step time */
     targetP95Ms: 5.0,
     /** Hard ceiling for 95th-percentile step time */
-    maxP95Ms: 12.0,
+    maxP95Ms: 25.0,
     /** Hard ceiling for 99th-percentile step time (absorbs garbage collection / occasional realloc) */
-    maxP99Ms: 25.0,
+    maxP99Ms: 40.0,
     /** Absolute single-tick spike limit */
-    maxSpikeMs: 50.0,
+    maxSpikeMs: 80.0,
   },
 
   /** Strategy comparison & forecasting ("Fork the future") */

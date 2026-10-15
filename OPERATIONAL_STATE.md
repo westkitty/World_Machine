@@ -44,7 +44,8 @@ bun run build
 - **Phase F1 (Proof Factory) In Progress (CP09–CP16)**:
   - CP09 (P007): Automated real-browser journeys verified via Playwright (`tests/e2e/journeys.spec.ts`). 14/14 journeys pass across Desktop Chrome and mobile touch emulation (Pixel 7).
   - CP10 (P008): Performance and lifecycle budgets established and verified via `tests/bench.test.ts` (`bun run sim:bench`) and `src/sim/budgets.ts`. All 7 performance budget suites pass.
-- **124/124 automated Vitest tests** passing across 11 suites.
+  - CP11 (P073): Seeded property-based testing verified via `src/sim/property.ts` and `tests/property.test.ts`. Long-run invariant fuzzing (120 ticks, 3 seeds, 240 commands), save/load fuzz continuity, deterministic command replay, and boundary fuzzing pass cleanly.
+- **128/128 automated Vitest tests** passing across 12 suites.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
@@ -60,4 +61,4 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP11 (P073: Seeded property-based testing)**: generate reproducible seeded worlds and legal command sequences to fuzz conservation, ranges, and state continuity.
+Proceed with **Checkpoint CP12 (P072: Deterministic civilization replay engine)**: record seed, build identity, tick-stamped commands, and periodic hashes; implement replay execution and divergence reporting.

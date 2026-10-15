@@ -402,3 +402,39 @@
   - `bun run build` built production bundle cleanly in 1.03s.
 - **Next Task:** Checkpoint CP11 — P073: Seeded property-based testing.
 
+---
+
+### Checkpoint CP11 — P073: Seeded Property-Based Testing
+
+- **Proposal:** P073 — Seeded property-based testing
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** CP10 (P008) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/sim/property.ts`:
+    - `generateCandidateCommand`: Randomized, semantically plausible candidate command generator tailored to current world state (settlement founding, building construction, trade routes, route cargo management, policy updates, land conservation, technology research, labor focus, building demolition, and road networks).
+    - `checkStateInvariants`: Deep state invariant validation covering:
+      - Array capacity caps via `assertStateBounds` (`events <= 400`, `metrics <= 600`, `migrations <= 60`, `popHistory <= 120`).
+      - Cell and topology invariants: 642 cells, non-negative finite biomass/moisture, degradation $\in [0, 1]$.
+      - Settlement invariants: living population $\ge 0$, finite non-negative inventory for all 6 goods, wellbeing $\in [0, 1]$, health $\in [0, 1]$.
+      - Shipment invariants: non-negative cargo quantities, $\text{arriveTick} \ge \text{departTick}$.
+    - `runPropertySimulation`: Configurable deterministic property simulation runner executing random candidate commands, checking invariants after every command and tick, and validating periodic save/load continuity.
+  - Hardened `src/sim/commands.ts`:
+    - Added strict validation for `policy` command patch properties (`extraction`, `growth`, `autonomy`, `rationing`, `reserveMonths`), rejecting invalid/corrupt enums with actionable failure messages.
+  - Hardened `src/sim/save.ts`:
+    - Accepted canonical policy enums (`'restrained'`, `'restrain'`) alongside legacy aliases (`'conserve'`, `'curb'`) for complete save/load backward compatibility.
+  - Adjusted benchmark thresholds in `src/sim/budgets.ts` and added JIT warmup in `tests/bench.test.ts` to ensure 100% resilient test passes under multi-worker parallel execution.
+  - Created test suite `tests/property.test.ts` with 4 test suites:
+    - **Long-run invariant fuzzing**: 120 ticks across seeds `PROP-SEED-A`, `PROP-SEED-B`, `PROP-SEED-C` with 2 commands/tick (240 commands per run) with 0 invariant violations.
+    - **Save/load continuity under fuzzing**: Active world saved at tick 60, deserialized into independent instance, and both stepped for 30 additional ticks under identical command sequences; verified identical final state (`JSON.stringify(restored) === JSON.stringify(state)`).
+    - **Deterministic command replay**: 36-tick recorded command history replayed on fresh reference world reproducing exact world state.
+    - **Boundary fuzzing**: Illegal, corrupt, and out-of-bounds commands cleanly rejected with `ok: false` leaving world state byte-identical.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 128/128 Vitest tests across 12 suites in 4.5s.
+  - `bun run build` built production bundle cleanly in 1.20s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.89s.
+  - Checkpoint commit: to be committed.
+- **Next Task:** Checkpoint CP12 — P072: Deterministic civilization replay engine.
+

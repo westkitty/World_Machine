@@ -59,6 +59,9 @@ describe('Performance and Lifecycle Budgets (P008)', () => {
   it('scenario execution performance: all 5 scenarios stay within tick budget', () => {
     for (const def of SCENARIOS) {
       const state = createScenarioWorld(def.id, false);
+      // Warmup ticks to ensure JIT baseline
+      for (let i = 0; i < 10; i++) step(state);
+
       const samples: number[] = [];
 
       for (let i = 0; i < 120; i++) {

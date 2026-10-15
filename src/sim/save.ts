@@ -94,9 +94,9 @@ export function validateState(state: WorldState): void {
   // Nested validation: policy
   if (!state.policy || typeof state.policy !== 'object') fail('missing policy');
   const p = state.policy;
-  if (!['conserve', 'normal', 'intensive'].includes(p.extraction)) fail('invalid policy.extraction');
+  if (!['restrained', 'conserve', 'normal', 'intensive'].includes(p.extraction)) fail('invalid policy.extraction');
   if (typeof p.rationing !== 'boolean') fail('policy.rationing must be boolean');
-  if (!['curb', 'neutral', 'encourage'].includes(p.growth)) fail('invalid policy.growth');
+  if (!['restrain', 'curb', 'neutral', 'encourage'].includes(p.growth)) fail('invalid policy.growth');
   if (!['none', 'limited', 'full'].includes(p.autonomy)) fail('invalid policy.autonomy');
   if (
     !Array.isArray(p.tradePriority) ||

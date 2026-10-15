@@ -104,6 +104,18 @@ function executeCommand(state: WorldState, cmd: Command): CommandResult {
     }
     case 'policy': {
       if (!cmd.patch || typeof cmd.patch !== 'object') return fail('Policy patch must be an object.');
+      if (cmd.patch.extraction !== undefined && !['restrained', 'normal', 'intensive'].includes(cmd.patch.extraction)) {
+        return fail('Invalid extraction policy.');
+      }
+      if (cmd.patch.growth !== undefined && !['restrain', 'neutral', 'encourage'].includes(cmd.patch.growth)) {
+        return fail('Invalid growth policy.');
+      }
+      if (cmd.patch.autonomy !== undefined && !['none', 'limited', 'full'].includes(cmd.patch.autonomy)) {
+        return fail('Invalid autonomy policy.');
+      }
+      if (cmd.patch.rationing !== undefined && typeof cmd.patch.rationing !== 'boolean') {
+        return fail('Invalid rationing policy.');
+      }
       const scenarioBlocker = checkScenarioPolicy(state, cmd.patch);
       if (scenarioBlocker) return fail(scenarioBlocker);
       const p = { ...state.policy, ...cmd.patch };
@@ -112,7 +124,10 @@ function executeCommand(state: WorldState, cmd: Command): CommandResult {
         if (tp.length !== TRADE_GOODS.length || new Set(tp).size !== tp.length) return fail('Trade priority must list each tradeable good once.');
         p.tradePriority = tp;
       }
-      if (cmd.patch.reserveMonths !== undefined) p.reserveMonths = Math.max(1, Math.min(12, Math.round(cmd.patch.reserveMonths)));
+      if (cmd.patch.reserveMonths !== undefined) {
+        if (typeof cmd.patch.reserveMonths !== 'number' || isNaN(cmd.patch.reserveMonths)) return fail('Invalid reserve months.');
+        p.reserveMonths = Math.max(1, Math.min(12, Math.round(cmd.patch.reserveMonths)));
+      }
       state.policy = p;
       return { ok: true, message: 'Policy updated.' };
     }
