@@ -57,6 +57,7 @@ export class Hud {
   private lastRefresh = 0;
   modalOpen = false;
   private resumeSpeed = 0;
+  private previouslyFocused: HTMLElement | null = null;
 
   constructor(private app: App) {
     this.root = document.querySelector<HTMLElement>('#ui')!;
@@ -93,6 +94,15 @@ export class Hud {
     this.modalBody = h('div.modal-body');
     this.modal = h('div.modal', { role: 'dialog', 'aria-modal': 'true', on: { click: (e: Event) => { if (e.target === this.modal) this.closeModal(); } } },
       h('div.modal-card', h('button.modal-close', { type: 'button', 'aria-label': 'Close', on: { click: () => this.closeModal() } }, icon('close', 16)), this.modalBody));
+    this.modal.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        this.closeModal();
+      } else if (e.key === 'Tab') {
+        this.trapFocus(e);
+      }
+    });
     const camera = h('div.camera', { 'aria-label': 'Camera' },
       button(icon('plus', 16), () => app.view.zoomBy(0.8), { kind: 'ghost', title: 'Zoom in (+)' }),
       button(icon('minus', 16), () => app.view.zoomBy(1.25), { kind: 'ghost', title: 'Zoom out (−)' }),
@@ -103,6 +113,9 @@ export class Hud {
     this.buildTabs();
     this.buildOverlayBar();
     document.addEventListener('keydown', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (this.modalOpen) return;
       if (e.shiftKey && /^[!@#$]$/.test(e.key)) this.bookmark('!@#$'.indexOf(e.key), true);
     });
   }
@@ -432,13 +445,46 @@ export class Hud {
 
   // ---------------------------------------------------------------- modals
 
+  private trapFocus(e: KeyboardEvent): void {
+    const focusableSelectors = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = Array.from(this.modal.querySelectorAll<HTMLElement>(focusableSelectors))
+      .filter((el) => !el.classList.contains('disabled') && el.getAttribute('aria-disabled') !== 'true');
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !this.modal.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !this.modal.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
   openModal(content: HTMLElement): void {
-    if (!this.modalOpen) this.resumeSpeed = this.app.clock.speed;
+    if (!this.modalOpen) {
+      this.resumeSpeed = this.app.clock.speed;
+      this.previouslyFocused = (document.activeElement as HTMLElement) ?? null;
+      if (!this.app.clock.paused) this.app.clock.pause();
+    }
     this.modalOpen = true;
     this.app.view.cinematic = true;
     clear(this.modalBody).append(content);
     this.modal.classList.add('open');
-    (this.modal.querySelector('.modal-close') as HTMLElement)?.focus();
+    const first = this.modal.querySelector<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+    if (first) {
+      first.focus();
+    } else {
+      (this.modal.querySelector('.modal-close') as HTMLElement)?.focus();
+    }
+    this.refresh(true);
   }
 
   closeModal(): void {
@@ -448,8 +494,17 @@ export class Hud {
     this.app.view.noteInput();
     this.modal.classList.remove('open');
     clear(this.modalBody);
+    if (this.resumeSpeed > 0) {
+      this.app.clock.setSpeed(this.resumeSpeed);
+    } else {
+      this.app.clock.setSpeed(0);
+    }
+    const toFocus = this.previouslyFocused;
+    this.previouslyFocused = null;
+    if (toFocus && typeof toFocus.focus === 'function' && document.body.contains(toFocus)) {
+      try { toFocus.focus(); } catch { /* ignore */ }
+    }
     this.refresh(true);
-    void this.resumeSpeed;
   }
 
   openTitle(): void { this.openModal(titleScreen(this.app, () => this.closeModal())); }

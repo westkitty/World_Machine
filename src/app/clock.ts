@@ -23,15 +23,37 @@ export class SimClock {
     return this.speed === 0;
   }
 
-  setSpeed(index: number): void {
+  setSpeed(index: number, resetAccumulator = false): void {
     const s = Math.max(0, Math.min(SPEEDS.length - 1, Math.round(index)));
     if (s > 0) this.lastSpeed = s;
     this.speed = s;
-    this.accumulator = 0;
+    if (resetAccumulator) this.accumulator = 0;
+  }
+
+  pause(): void {
+    if (this.speed > 0) {
+      this.lastSpeed = this.speed;
+      this.speed = 0;
+    }
+  }
+
+  resume(): void {
+    if (this.speed === 0) {
+      this.speed = this.lastSpeed > 0 ? this.lastSpeed : 1;
+    }
   }
 
   togglePause(): void {
-    this.setSpeed(this.paused ? this.lastSpeed : 0);
+    if (this.paused) this.resume();
+    else this.pause();
+  }
+
+  reset(): void {
+    this.accumulator = 0;
+  }
+
+  get accumulated(): number {
+    return this.accumulator;
   }
 
   /** Returns the number of ticks to run for `dtSeconds` of real time. */
@@ -39,8 +61,8 @@ export class SimClock {
     if (this.paused || !(dtSeconds > 0)) return 0;
     const dt = Math.min(dtSeconds, 0.25);
     this.accumulator += dt * SPEEDS[this.speed].ticksPerSecond;
-    const ticks = Math.min(MAX_TICKS_PER_FRAME, Math.floor(this.accumulator));
-    this.accumulator -= ticks;
+    const ticks = Math.min(MAX_TICKS_PER_FRAME, Math.floor(this.accumulator + 1e-9));
+    this.accumulator = Math.max(0, this.accumulator - ticks);
     if (this.accumulator > MAX_TICKS_PER_FRAME) this.accumulator = 0;
     return ticks;
   }

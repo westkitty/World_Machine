@@ -106,6 +106,7 @@ export class App {
     assertStateValid(state);
     invalidateForecast();
     this.state = state;
+    this.clock.reset();
     this.selectedCell = -1;
     this.tool = { kind: 'inspect' };
     this.view.setSelection(-1);
@@ -405,19 +406,33 @@ export class App {
     });
   }
 
-  private onKey(e: KeyboardEvent): void {
-    const target = e.target as HTMLElement;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
+  onKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key;
+    if (this.hud.modalOpen) {
+      if (k === 'Escape') {
+        e.preventDefault();
+        this.hud.closeModal();
+      }
+      return;
+    }
+    // Focused buttons, links, or role=button/tab receive Space and Enter natively without triggering world pause or world tools
+    if (target && (target.tagName === 'BUTTON' || target.tagName === 'A' || target.getAttribute('role') === 'button' || target.getAttribute('role') === 'tab')) {
+      if (k === ' ' || k === 'Enter') return;
+    }
     this.audio.unlock();
     this.view.noteInput();
-    const k = e.key;
-    if (this.hud.modalOpen) { if (k === 'Escape') this.hud.closeModal(); return; }
     const handled = () => e.preventDefault();
     if (k === ' ') { this.clock.togglePause(); this.hud.refresh(true); handled(); }
     else if (k === '.' || k === '>') { this.stepOnce(); handled(); }
     else if (k >= '1' && k <= '4') { this.clock.setSpeed(Number(k)); this.hud.refresh(true); }
-    else if (k === 'Escape') this.setTool({ kind: 'inspect' });
+    else if (k === 'Escape') {
+      if (this.tool.kind !== 'inspect') this.setTool({ kind: 'inspect' });
+      else if (this.selectedCell >= 0) this.select(-1);
+      handled();
+    }
     else if (k === 'q' || k === 'Q') this.setTool({ kind: 'inspect' });
     else if (k === 'n' || k === 'N') this.setTool({ kind: 'found' });
     else if (k === 'r' || k === 'R') this.setTool({ kind: 'road', from: -1 });

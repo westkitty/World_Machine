@@ -290,6 +290,25 @@ Strategy comparisons ("Fork the future" in `src/sim/compare.ts` and `src/ui/pane
 - **UI reflection**: `compareTable` displays an explicit fork semantics callout with origin seed, date, horizon, and fingerprint, and disables Adopt buttons with actionable explanations whenever adoption is invalid.
 - Verified via automated test suite in `tests/forecast_integrity.test.ts`.
 
+## Modal, time, and keyboard coherence (P004)
+
+Simulation time, modal lifecycle, and input dispatch are kept strictly coherent across desktop, touch, and keyboard interaction:
+- **Pause/resume and accumulated-tick semantics (`src/app/clock.ts`)**:
+  - `SimClock` preserves fractional tick progress (`this.accumulator`) across pause and resume cycles.
+  - Pausing via `clock.pause()`, `clock.togglePause()`, or modal opening freezes the clock without resetting accumulated time or advancing simulation ticks.
+  - Resuming via `clock.resume()`, `clock.togglePause()`, or modal closing restores the exact previous clock speed and unfreezes the accumulator without tick jumps or time drift.
+  - `advance(dt)` applies floating point epsilon (`+ 1e-9`) to prevent IEEE-754 precision drift around tick thresholds and caps maximum catch-up ticks per frame at `MAX_TICKS_PER_FRAME` (4).
+- **Modal lifecycle and focus management (`src/ui/Hud.ts`)**:
+  - `openModal` records previous running speed (`resumeSpeed`) and currently focused element (`previouslyFocused`), then pauses simulation progression.
+  - Focus is transferred immediately to the first interactive element inside the modal or `.modal-close`.
+  - Accessible focus trap (`trapFocus`) confines Tab and Shift+Tab navigation strictly within open modal dialogs.
+  - `closeModal` restores previous simulation clock speed and returns keyboard focus directly to `previouslyFocused`.
+- **Keyboard shortcut suppression and parity (`src/app/App.ts`)**:
+  - When text inputs (`INPUT`, `SELECT`, `TEXTAREA`, `isContentEditable`) or modal dialogs are active, all single-key world shortcuts (tools, speed changes, pause, overlays) are suppressed.
+  - Focused interactive controls (`BUTTON`, `A`, `role="button"`, `role="tab"`) receive Space and Enter natively without triggering world pause or world commands.
+  - Escape key provides coherent multi-tier cancellation: closes open modal if open, cancels active tool back to `inspect` if a tool is armed, or deselects active region.
+- Verified via automated test suite in `tests/modal_time_keyboard.test.ts`.
+
 ## Rendering and performance
 
 - One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom

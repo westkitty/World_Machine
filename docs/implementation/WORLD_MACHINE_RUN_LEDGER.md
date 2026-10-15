@@ -279,3 +279,63 @@
   - Checkpoint commit: `feat(world-machine): CP07 P001 forecast ownership and adoption integrity`
 - **Next Task:** Checkpoint CP08 — P004: Modal/time/keyboard coherence (final checkpoint of Phase F0).
 
+---
+
+### Checkpoint CP08 — P004: Modal/Time/Keyboard Coherence
+
+- **Proposal:** P004 — Modal/time/keyboard coherence
+- **Phase:** F0 (Foundation) — **PHASE F0 COMPLETION GATE**
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Repair · M
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP03 (P071) completed
+- **Implementation Packet:**
+  - Extended `src/app/clock.ts` (`SimClock`):
+    - Added `pause()`, `resume()`, and `reset()` methods.
+    - Updated `setSpeed(index, resetAccumulator = false)` and `togglePause()` to preserve fractional tick progress (`accumulator`), ensuring pausing and unpausing never discards accumulated month time.
+    - Provided `accumulated` getter.
+    - Added floating-point epsilon (`+ 1e-9`) to `advance(dt)` to prevent IEEE-754 precision drift around tick thresholds.
+  - Extended `src/ui/Hud.ts`:
+    - Updated `openModal(content)`:
+      - Saves previous running speed (`this.resumeSpeed = this.app.clock.speed`).
+      - Saves currently focused element (`this.previouslyFocused = document.activeElement`).
+      - Automatically pauses simulation progression via `this.app.clock.pause()`.
+      - Shifts keyboard focus immediately to first interactive control inside modal or `.modal-close`.
+    - Implemented `trapFocus(e: KeyboardEvent)`:
+      - Traps Tab and Shift+Tab navigation strictly inside open modals, cycling between first and last focusable elements.
+    - Updated `closeModal()`:
+      - Restores original simulation speed (`this.app.clock.setSpeed(this.resumeSpeed)`).
+      - Returns keyboard focus to `this.previouslyFocused`.
+    - Added keyboard shortcut suppression: bookmark hotkeys (`Shift+!@#$`) are suppressed during text input or when a modal is open.
+  - Extended `src/app/App.ts`:
+    - Made `onKey(e: KeyboardEvent)` public and hardened shortcut dispatch:
+      - Suppresses all world shortcuts when modal is open (only Escape closes modal).
+      - When interactive buttons or links (`BUTTON`, `A`, `role="button"`, `role="tab"`) have focus, pressing Space or Enter is delegated to the control natively, preventing accidental world pause or tool triggers.
+      - Escape key provides coherent hierarchical cancellation: closes open modal if open, cancels active non-inspect tool back to `inspect` if a tool is armed, or deselects active region if inspecting.
+    - Added `this.clock.reset()` in `App.load` to guarantee new worlds and loaded saves start with a clean tick phase.
+  - Created test suite `tests/modal_time_keyboard.test.ts` (16 tests):
+    - `initializes with default speed 1, paused false, and 0 accumulated ticks`
+    - `accumulates fractional time toward the next tick without loss`
+    - `pause() freezes accumulator and advance() returns 0 without time drift`
+    - `togglePause() preserves accumulator across rapid pause/unpause cycles`
+    - `reset() resets accumulator to 0 on world transitions`
+    - `caps catch-up work at MAX_TICKS_PER_FRAME to prevent tab sleep bursts`
+    - `simulates modal lifecycle preserving speed and accumulated time`
+    - `modal opened while game was already paused remains paused on exit`
+    - `traps focus between first and last focusable elements on Tab and Shift+Tab`
+    - `restores focus to previously focused element when modal closes`
+    - `suppresses world pause and actions when focused control is a button or link`
+    - `suppresses all world shortcuts when modal is open except Escape`
+    - `Escape cancels active tool back to inspect or deselects cell`
+    - `verifies Hud.ts has trapFocus, modalOpen pause/resume, and focus return`
+    - `verifies App.ts suppresses world shortcuts for focused interactive controls and modalOpen`
+    - `verifies clock.ts defines pause(), resume(), and preserves accumulator on setSpeed`
+  - Updated `docs/TECHNICAL.md` with Modal, time, and keyboard coherence section.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/modal_time_keyboard.test.ts` passed 16/16 tests.
+  - Total automated test suite expanded to 117 tests passing across 10 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`, `tests/forecast_integrity.test.ts`, `tests/modal_time_keyboard.test.ts`).
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run build` built cleanly.
+  - Checkpoint commit: `feat(world-machine): CP08 P004 modal time keyboard coherence`
+- **Phase F0 Status:** **COMPLETE**. All 8 proposals in Phase F0 (P061, P062, P071, P082, P002, P003, P001, P004) across Checkpoints CP01–CP08 are fully implemented, tested, verified, and committed.
+- **Next Task:** Phase F1 — Proof factory and extensible content backbone (CP09: P007 Automated real-browser journeys).
+
