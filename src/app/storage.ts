@@ -1,6 +1,6 @@
 import { SaveError, deserialize, serialize } from '../sim/save';
 import { formatDate, type WorldState } from '../sim/types';
-import type { Quality } from '../render/PlanetView';
+import type { Lighting, Quality } from '../render/PlanetView';
 
 /**
  * Local persistence. Every access is guarded: private browsing, disabled
@@ -92,6 +92,8 @@ export interface Settings {
   autosave: boolean;
   seenHelp: boolean;
   bookmarks: ([number, number, number] | null)[];
+  /** 'studio': key light follows the camera for readability; 'orbital': real day/night cycle. */
+  lighting: Lighting;
 }
 
 const SETTINGS_KEY = 'wm:settings';
@@ -101,7 +103,7 @@ export function defaultSettings(): Settings {
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   return {
     quality: coarse ? 'medium' : 'high', reducedMotion: reduce, reducedEffects: false, showBorders: true,
-    showLabels: true, autosave: true, seenHelp: false, bookmarks: [null, null, null, null],
+    showLabels: true, autosave: true, seenHelp: false, bookmarks: [null, null, null, null], lighting: 'studio',
   };
 }
 

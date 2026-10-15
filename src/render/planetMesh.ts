@@ -194,25 +194,35 @@ export function paintPlanet(state: WorldState, data: PlanetMeshData, opts: Color
 }
 
 /**
- * Night lights from real settlements: brightness grows with population and
- * is scaled by how much of their energy need was actually met.
+ * Night lights from real settlements: a city core around each settlement
+ * centre that thins into scattered towns across its territory. Brightness
+ * grows with population and is scaled by how much energy demand was met.
  */
 export function paintLights(state: WorldState, data: PlanetMeshData): void {
   const topo = getTopology();
   const lightsAttr = data.geometry.getAttribute('lights') as THREE.BufferAttribute;
   const arr = lightsAttr.array as Float32Array;
-  const cellLight = new Float32Array(topo.count);
+  const pos = data.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const bySettlement = new Map<number, { c: Vec3; glow: number; sigma: number }>();
   for (const s of state.settlements) {
     if (!s.alive) continue;
     const energy = s.last.needed.energy > 0 ? Math.min(1, s.last.consumed.energy / s.last.needed.energy) : 0;
     const base = Math.min(1, Math.sqrt(s.population / 20000));
-    const glow = base * (0.18 + 0.82 * energy);
-    cellLight[s.cellId] += glow;
-    for (const c of topo.neighbors[s.cellId]) if (state.cells[c].owner === s.id) cellLight[c] += glow * 0.35;
+    bySettlement.set(s.id, { c: topo.centers[s.cellId], glow: base * (0.2 + 0.8 * energy), sigma: 0.05 + 0.07 * base });
   }
   for (let v = 0; v < data.vertexCount; v++) {
-    const l = cellLight[data.cellOf[v]];
-    arr[v] = l > 0 && data.vertexLand[v] ? l * (0.55 + 0.45 * Math.max(0, data.detail[v] + 0.5)) : 0;
+    arr[v] = 0;
+    if (!data.vertexLand[v]) continue;
+    const owner = state.cells[data.cellOf[v]].owner;
+    const st = owner >= 0 ? bySettlement.get(owner) : undefined;
+    if (!st) continue;
+    const x = pos.getX(v), y = pos.getY(v), z = pos.getZ(v);
+    const len = Math.hypot(x, y, z);
+    const ang = Math.acos(Math.min(1, (x * st.c[0] + y * st.c[1] + z * st.c[2]) / len));
+    // Smooth extent: bright core, wider suburban halo. Town speckle is added per pixel in the shader.
+    const core = Math.exp(-((ang / st.sigma) ** 2));
+    const halo = Math.exp(-((ang / (st.sigma * 3)) ** 2));
+    arr[v] = st.glow * Math.min(1.2, core * 1.1 + halo * 0.22);
   }
   lightsAttr.needsUpdate = true;
 }

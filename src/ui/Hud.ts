@@ -7,18 +7,19 @@ import { getSettlement } from '../sim/settlements';
 import { formatDate, type BuildingType, type HistoryEvent } from '../sim/types';
 import { OVERLAYS, buildOverlayContext, getOverlay, type Legend, type RGB } from '../render/overlays';
 import { button, clear, compact, h, pct } from './dom';
+import { icon } from './icons';
 import { helpScreen, savesScreen, settingsScreen, titleScreen } from './menus';
 import { PANELS, TABS, statusGlyph, type TabId } from './panels';
 
 const css = (c: RGB) => `rgb(${Math.round(c[0] * 255)},${Math.round(c[1] * 255)},${Math.round(c[2] * 255)})`;
 
 const TOOLS: { tool: Tool; label: string; icon: string; key: string; hint: string }[] = [
-  { tool: { kind: 'inspect' }, label: 'Inspect', icon: '⌕', key: 'Q', hint: 'Select regions and settlements.' },
-  { tool: { kind: 'found' }, label: 'Found', icon: '✦', key: 'N', hint: 'Send settlers to found a new community.' },
-  ...(Object.keys(BUILDINGS) as BuildingType[]).map((b) => ({ tool: { kind: 'build', building: b } as Tool, label: BUILDINGS[b].label, icon: { farm: '❦', mine: '⛏', storage: '▣', energy: 'ϟ', port: '⚓' }[b], key: '', hint: BUILDINGS[b].description })),
-  { tool: { kind: 'road', from: -1 }, label: 'Road', icon: '═', key: 'R', hint: 'Pave land links: cheaper, faster, larger trade.' },
-  { tool: { kind: 'route', from: -1 }, label: 'Trade route', icon: '⇄', key: 'T', hint: 'Connect two settlements to exchange goods.' },
-  { tool: { kind: 'conserve' }, label: 'Reserve', icon: '❀', key: 'C', hint: 'Protect a region: no extraction, faster recovery.' },
+  { tool: { kind: 'inspect' }, label: 'Inspect', icon: 'inspect', key: 'Q', hint: 'Select regions and settlements.' },
+  { tool: { kind: 'found' }, label: 'Found', icon: 'found', key: 'N', hint: 'Send settlers to found a new community.' },
+  ...(Object.keys(BUILDINGS) as BuildingType[]).map((b) => ({ tool: { kind: 'build', building: b } as Tool, label: BUILDINGS[b].label, icon: b, key: '', hint: BUILDINGS[b].description })),
+  { tool: { kind: 'road', from: -1 }, label: 'Road', icon: 'road', key: 'R', hint: 'Pave land links: cheaper, faster, larger trade.' },
+  { tool: { kind: 'route', from: -1 }, label: 'Trade route', icon: 'route', key: 'T', hint: 'Connect two settlements to exchange goods.' },
+  { tool: { kind: 'conserve' }, label: 'Reserve', icon: 'reserve', key: 'C', hint: 'Protect a region: no extraction, faster recovery.' },
 ];
 
 const toolKey = (t: Tool) => (t.kind === 'build' ? `build:${t.building}` : t.kind);
@@ -46,6 +47,9 @@ export class Hud {
   private modal!: HTMLElement;
   private modalBody!: HTMLElement;
   private labelEls = new Map<number, HTMLElement>();
+  private monthFill = h('div.month-fill');
+  private monthBar = h('div.month-bar', { 'aria-hidden': 'true' }, this.monthFill);
+  private lastTab: TabId | null = null;
   private seen = new WeakSet<HistoryEvent>();
   private tab: TabId = 'region';
   private drawerOpen = true;
@@ -58,6 +62,8 @@ export class Hud {
     this.root = document.querySelector<HTMLElement>('#ui')!;
     this.build();
     if (matchMedia('(max-width: 760px)').matches) this.setDrawer(false);
+    window.addEventListener('resize', () => this.updateInsets());
+    setTimeout(() => this.updateInsets(), 0);
   }
 
   // ---------------------------------------------------------------- layout
@@ -70,7 +76,7 @@ export class Hud {
       h('div.brand', h('button.brand-btn', { type: 'button', title: 'New game / main menu', on: { click: () => this.openTitle() } }, h('span.logo', '◉'), h('span.word', 'The World Machine')), h('div.world', { id: 'world-name' })),
       this.clockEl,
       h('div.top-right', this.stats,
-        h('div.menu', button('Save', () => this.openSaves(), { kind: 'ghost', title: 'Save, load, export or import' }), button('⚙', () => this.openSettings(), { kind: 'ghost', title: 'Settings' }), button('?', () => this.openHelp(), { kind: 'ghost', title: 'Help & controls (H)' }))));
+        h('div.menu', button([icon('save', 16), h('span.lbl', 'Save')], () => this.openSaves(), { kind: 'ghost', title: 'Save, load, export or import' }), button(icon('settings', 17), () => this.openSettings(), { kind: 'ghost.iconbtn', title: 'Settings' }), button(icon('help', 17), () => this.openHelp(), { kind: 'ghost.iconbtn', title: 'Help & controls (H)' }))));
     this.banner = h('div.banner', { role: 'status' });
     this.rail = h('nav.rail', { 'aria-label': 'Tools' });
     this.tabBar = h('div.tabs', { role: 'tablist' });
@@ -86,11 +92,11 @@ export class Hud {
     this.labels = h('div.labels');
     this.modalBody = h('div.modal-body');
     this.modal = h('div.modal', { role: 'dialog', 'aria-modal': 'true', on: { click: (e: Event) => { if (e.target === this.modal) this.closeModal(); } } },
-      h('div.modal-card', h('button.modal-close', { type: 'button', 'aria-label': 'Close', on: { click: () => this.closeModal() } }, '✕'), this.modalBody));
+      h('div.modal-card', h('button.modal-close', { type: 'button', 'aria-label': 'Close', on: { click: () => this.closeModal() } }, icon('close', 16)), this.modalBody));
     const camera = h('div.camera', { 'aria-label': 'Camera' },
-      button('＋', () => app.view.zoomBy(0.8), { kind: 'ghost', title: 'Zoom in (+)' }),
-      button('－', () => app.view.zoomBy(1.25), { kind: 'ghost', title: 'Zoom out (−)' }),
-      button('⟲', () => app.view.resetCamera(), { kind: 'ghost', title: 'Reset view (Home)' }),
+      button(icon('plus', 16), () => app.view.zoomBy(0.8), { kind: 'ghost', title: 'Zoom in (+)' }),
+      button(icon('minus', 16), () => app.view.zoomBy(1.25), { kind: 'ghost', title: 'Zoom out (−)' }),
+      button(icon('reset', 16), () => app.view.resetCamera(), { kind: 'ghost', title: 'Reset view (Home)' }),
       h('div.bookmarks', ...[0, 1, 2, 3].map((i) => button(`${i + 1}`, () => this.bookmark(i), { kind: 'ghost', title: `Bookmark ${i + 1}: click to fly there; Shift-click to store current view` }))));
     this.root.append(this.labels, this.top, this.banner, this.rail, this.drawer, h('div.bottom', this.hintBar, this.overlayBar, this.legend), camera, this.toasts, this.hint, this.modal);
     this.buildRail();
@@ -122,7 +128,7 @@ export class Hud {
         type: 'button', 'aria-pressed': String(active), 'aria-disabled': disabled ? 'true' : undefined,
         title: disabled ? 'Observer mode: interventions are disabled' : `${t.label}${t.key ? ` (${t.key})` : ''} — ${t.hint}`,
         on: { click: () => { this.app.audio.unlock(); this.app.setTool(t.tool); } },
-      }, h('span.icon', t.icon), h('span.lbl', t.label)));
+      }, h('span.icon', icon(t.icon, 20)), h('span.lbl', t.label)));
     }
   }
 
@@ -133,7 +139,7 @@ export class Hud {
       this.tabBar.append(h(`button.tab${t.id === this.tab ? '.on' : ''}`, {
         type: 'button', role: 'tab', 'aria-selected': String(t.id === this.tab), title: t.label,
         on: { click: () => this.showTab(t.id) },
-      }, h('span.icon', t.icon), h('span.lbl', t.label), crisis ? h('i.dot') : null));
+      }, h('span.icon', icon(t.icon, 16)), h('span.lbl', t.label), crisis ? h('i.dot') : null));
     }
   }
 
@@ -179,6 +185,9 @@ export class Hud {
     this.drawerOpen = open;
     this.drawer.classList.toggle('closed', !open);
     document.body.classList.toggle('drawer-closed', !open);
+    // Measure after the slide transition so the planet re-frames to the final layout.
+    requestAnimationFrame(() => this.updateInsets());
+    setTimeout(() => this.updateInsets(), 320);
   }
 
   showTab(id: TabId): void {
@@ -193,7 +202,11 @@ export class Hud {
     const active = document.activeElement;
     if (active && this.drawerBody.contains(active) && (active.tagName === 'SELECT' || active.tagName === 'INPUT')) return;
     const scroll = this.drawerBody.scrollTop;
-    clear(this.drawerBody).append(PANELS[this.tab](this.app));
+    const body = PANELS[this.tab](this.app);
+    // Animate only when the tab actually changes, never on live refreshes.
+    if (this.lastTab !== this.tab) body.classList.add('enter');
+    this.lastTab = this.tab;
+    clear(this.drawerBody).append(body);
     this.drawerBody.scrollTop = scroll;
   }
 
@@ -250,12 +263,45 @@ export class Hud {
       const kind = e.kind;
       const loud = e.severity !== 'info' || kind === 'founded' || kind === 'tech' || kind.startsWith('scenario');
       if (!loud || kind === 'construction' || kind === 'crisis:end') continue;
+      this.eventFx(e);
       if (kind === 'built') this.app.audio.play('complete');
       else if (kind.startsWith('crisis:')) this.app.audio.play('crisis');
       else if (kind === 'founded') this.app.audio.play('found');
       else if (kind === 'agreement' || kind === 'relief') this.app.audio.play('trade');
       else if (kind === 'tech') this.app.audio.play('notify');
       this.toast(e.text, e.severity === 'bad' ? 'bad' : e.severity === 'warn' ? 'warn' : e.severity === 'good' ? 'good' : 'info', e.cellId);
+    }
+  }
+
+  /** Map a simulation event to in-world feedback on the globe. */
+  private eventFx(e: HistoryEvent): void {
+    const v = this.app.view;
+    const k = e.kind;
+    const live = this.app.state.settlements.filter((s) => s.alive);
+    if (k === 'tech' || k === 'scenario:success' || k === 'scenario:failure') {
+      const fx = k === 'tech' ? 'tech' : k === 'scenario:success' ? 'success' : 'failure';
+      live.slice(0, 12).forEach((s) => v.fx(fx, s.cellId));
+      return;
+    }
+    if (e.cellId < 0) return;
+    if (k === 'founded') v.fx('founded', e.cellId);
+    else if (k === 'built') v.fx('built', e.cellId);
+    else if (k === 'ruined') v.fx('ruined', e.cellId);
+    else if (k === 'abandoned') v.fx('abandoned', e.cellId);
+    else if (k.startsWith('crisis:') && k !== 'crisis:end') v.fx('crisis', e.cellId);
+    else if (k === 'agreement' || k === 'relief' || k === 'route') v.fx('agreement', e.cellId);
+  }
+
+  /** Tell the view which screen areas UI chrome covers so the planet stays framed. */
+  updateInsets(): void {
+    const mobile = matchMedia('(max-width: 760px)').matches;
+    const d = this.drawer.getBoundingClientRect();
+    const r = this.rail.getBoundingClientRect();
+    if (mobile) {
+      const covered = this.drawerOpen ? Math.max(0, window.innerHeight - d.top) : Math.max(0, window.innerHeight - Math.min(d.top, r.top));
+      this.app.view.setInsets({ left: 0, right: 0, top: 96, bottom: Math.min(covered, window.innerHeight * 0.6) });
+    } else {
+      this.app.view.setInsets({ left: r.right, right: this.drawerOpen ? window.innerWidth - d.left : 0, top: 56, bottom: 120 });
     }
   }
 
@@ -281,22 +327,22 @@ export class Hud {
     const s = this.app.state;
     const clock = this.app.clock;
     clear(this.clockEl).append(
-      h('div.date', h('span.when', formatDate(s.tick)), h('span.tickno', `month ${s.tick}`)),
+      h('div.date', h('span.when', formatDate(s.tick)), h('span.tickno', `month ${s.tick}`), this.monthBar),
       h('div.controls',
-        button(clock.paused ? '▶' : '❚❚', () => { this.app.audio.unlock(); clock.togglePause(); this.refresh(true); }, { kind: 'ghost', title: clock.paused ? 'Resume (Space)' : 'Pause (Space)', ariaPressed: clock.paused }),
-        button('⏭', () => { this.app.audio.unlock(); this.app.stepOnce(); }, { kind: 'ghost', title: 'Advance exactly one month (.)' }),
+        button(icon(clock.paused ? 'play' : 'pause', 15), () => { this.app.audio.unlock(); clock.togglePause(); this.refresh(true); }, { kind: 'ghost', title: clock.paused ? 'Resume (Space)' : 'Pause (Space)', ariaPressed: clock.paused }),
+        button(icon('step', 15), () => { this.app.audio.unlock(); this.app.stepOnce(); }, { kind: 'ghost', title: 'Advance exactly one month (.)' }),
         ...SPEEDS.slice(1).map((sp, i) => button(sp.label, () => { this.app.audio.unlock(); clock.setSpeed(i + 1); this.refresh(true); }, { kind: clock.speed === i + 1 ? 'on' : 'ghost', title: `${sp.ticksPerSecond} months/second (${i + 1})`, ariaPressed: clock.speed === i + 1 }))),
       ...(clock.paused ? [h('div.paused', 'PAUSED')] : []));
     const m = computeMetrics(s);
     const shortages = s.settlements.filter((x) => x.alive && x.last.shortage.some((g) => g === 'food' || g === 'water')).length;
     const crises = s.crises.filter((c) => !c.resolved).length;
     clear(this.stats).append(
-      h('span.stat', { title: 'Planetary population' }, h('i', '☉'), compact(m.population)),
-      h('span.stat', { title: 'Living settlements' }, h('i', '⌂'), String(m.settlements)),
-      h('span.stat', { title: 'Food stored planet-wide' }, h('i', '❦'), compact(m.food)),
-      h('span.stat', { title: 'Mean land degradation' }, h('i', '◒'), pct(m.degradation)),
-      h(`span.stat${shortages ? '.bad' : ''}`, { title: 'Settlements short of food or water' }, h('i', '!'), `${shortages} short`),
-      ...(crises ? [h('span.stat.bad', { title: 'Active crises', on: { click: () => this.showTab('crises') } }, h('i', '⚠'), `${crises}`)] : []));
+      h('span.stat', { title: 'Planetary population' }, icon('people', 14), compact(m.population)),
+      h('span.stat', { title: 'Living settlements' }, icon('settlement', 14), String(m.settlements)),
+      h('span.stat', { title: 'Food stored planet-wide' }, icon('food', 14), compact(m.food)),
+      h('span.stat', { title: 'Mean land degradation' }, icon('land', 14), pct(m.degradation)),
+      h(`span.stat${shortages ? '.bad' : ''}`, { title: 'Settlements short of food or water' }, icon('alert', 14), `${shortages} short`),
+      ...(crises ? [h('span.stat.bad', { title: 'Active crises', on: { click: () => this.showTab('crises') } }, icon('crises', 14), `${crises}`)] : []));
     this.app.audio.setMood(m.wellbeing);
     this.renderBanner();
     this.buildTabs();
@@ -325,6 +371,10 @@ export class Hud {
   frame(): void {
     if (this.dirty) this.refresh();
     this.positionLabels();
+    // Month progress: shows time flowing between ticks (purely presentational).
+    const clock = this.app.clock;
+    this.monthFill.style.transform = `scaleX(${clock.paused ? 0 : Math.min(1, clock.phase).toFixed(3)})`;
+    this.monthBar.classList.toggle('running', !clock.paused);
   }
 
   private positionLabels(): void {
@@ -348,6 +398,9 @@ export class Hud {
       el.style.display = visible ? '' : 'none';
       if (!visible) return;
       el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
+      // Labels fade out as they approach the limb instead of popping.
+      el.style.opacity = Math.min(1, (view.facing(st.cellId) - 0.15) / 0.25).toFixed(2);
+      el.dataset.tone = st.wellbeing > 0.7 ? 'good' : st.wellbeing > 0.45 ? 'warn' : 'bad';
       const text = `${st.name} · ${compact(st.population)} ${statusGlyph(st).split(' ')[0]}`;
       if (el.textContent !== text) {
         el.textContent = text;
@@ -361,10 +414,10 @@ export class Hud {
   // ---------------------------------------------------------------- feedback
 
   toast(text: string, kind: 'info' | 'good' | 'warn' | 'bad' = 'info', cellId = -1): void {
-    const el = h(`div.toast.${kind}`, { role: kind === 'bad' ? 'alert' : 'status' }, h('span.ic', { good: '✓', bad: '✕', warn: '!', info: '·' }[kind]), h('span', text));
+    const el = h(`div.toast.${kind}`, { role: kind === 'bad' ? 'alert' : 'status' }, h('span.ic', icon({ good: 'check', bad: 'close', warn: 'alert', info: 'info' }[kind], 15)), h('span', text));
     if (cellId >= 0) { el.classList.add('link'); el.addEventListener('click', () => this.app.select(cellId, true)); }
     this.toasts.prepend(el);
-    while (this.toasts.children.length > 5) this.toasts.lastElementChild?.remove();
+    while (this.toasts.children.length > 3) this.toasts.lastElementChild?.remove();
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 400); }, kind === 'bad' ? 8000 : 5000);
   }
 
@@ -382,6 +435,7 @@ export class Hud {
   openModal(content: HTMLElement): void {
     if (!this.modalOpen) this.resumeSpeed = this.app.clock.speed;
     this.modalOpen = true;
+    this.app.view.cinematic = true;
     clear(this.modalBody).append(content);
     this.modal.classList.add('open');
     (this.modal.querySelector('.modal-close') as HTMLElement)?.focus();
@@ -390,6 +444,8 @@ export class Hud {
   closeModal(): void {
     if (!this.modalOpen) return;
     this.modalOpen = false;
+    this.app.view.cinematic = false;
+    this.app.view.noteInput();
     this.modal.classList.remove('open');
     clear(this.modalBody);
     this.refresh(true);

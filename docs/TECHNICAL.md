@@ -232,15 +232,49 @@ endpoints) with specific messages; `migrate()` is the hook for future versions.
 
 ## Rendering and performance
 
-- One `WebGLRenderer`; one frame loop (`App.loop`); pixel ratio capped by quality preset
-  (1 / 1.5 / 2). Quality also selects mesh level (5/5/6) and clouds (off/on/on).
-- Planet: one indexed mesh with custom shader; per-vertex colour, night-light and border
-  attributes rewritten from simulation state (≤ 5×/s, ≈ 7 ms for 40,962 vertices). Geometry is
-  built once per world/quality.
-- Settlements, structures and shipments are `InstancedMesh`es (fixed capacity); roads, routes
-  and migration arcs are single `LineSegments` rebuilt on change with the old geometry
-  disposed. 15–17 draw calls in total.
-- Picking intersects the camera ray with a sphere and walks to the nearest cell (no mesh
-  raycast).
-- `PlanetView.dispose()` releases geometries, materials, the cloud texture, controls and the
-  renderer.
+- One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom
+  shaders light in linear space and include the tone-mapping and colour-space chunks, so the
+  direct path (Low) and the bloom path (Medium/High: `EffectComposer` → `RenderPass` →
+  `UnrealBloomPass` → `OutputPass`) match.
+- **Quality presets** — Low: level-5 mesh, no clouds, waves, sky band or bloom, DPR ≤ 1.
+  Medium: level-5 mesh, clouds, waves, sky, bloom, DPR ≤ 1.5. High: level-6 mesh, full
+  clouds, bloom, DPR ≤ 2. *Reduced effects* removes clouds, bloom, waves and the sky band and
+  cuts particles to 30%. *Reduced motion* stops cloud drift, waves, twinkle, flow dashes,
+  camera flights and idle drift, and keeps effects to static flashes.
+- **Adaptive quality** — an exponential moving average of frame time; if it stays above
+  30 ms for 4 s with bloom on, bloom is disabled and DPR capped at 1, once, with a toast.
+- **Lighting** — *Studio* (default): the key light is fixed relative to the camera
+  (upper-left, partly frontal), so whatever you look at is lit with a readable terminator
+  on the right limb. *Orbital*: a real day/night cycle with seasonal declination.
+- **Planet shader** — wrapped diffuse with a soft terminator, slope darkening for relief,
+  warm dusk band, cloud shadows sampled from the cloud texture, aerial-perspective haze at
+  the limb, and night lights: per-vertex extent (city core + halo, scaled by population
+  and met energy demand) multiplied by per-pixel noise for clustered towns and a flicker.
+- **Ocean** — transparent shell over the coloured seabed; two drifting value-noise octaves
+  perturb the normal for swell and glitter; Fresnel and haze.
+- **Atmosphere** — per ray, closest approach to the planet centre → exponential altitude
+  falloff, coloured by sun angle (blue day, amber terminator).
+- **Clouds** — domain-warped weather texture (two channels, drifting at different rates)
+  masked by a 128×64 data texture of the simulation's current precipitation and drought,
+  so dry regions clear and wet regions cloud over; lit with a sunset rim.
+- **Sky** — procedural galactic band (Medium/High) and a twinkling star field.
+- **Markers** — settlements: lit hexagonal towers (`InstancedMesh`) + additive beacon
+  glows (`Points`) that breathe and are sized by population and coloured by wellbeing;
+  structures: lit instanced shapes; shipments: glowing points coloured by good. Glows fade
+  near the limb and are size-capped when zoomed in.
+- **Lines** — roads, trade routes (animated dashes marching origin → destination, colour
+  by mode, brightness by utilisation), blocked routes, migration arcs, drought-zone
+  outlines and selection/hover outlines use `LineSegments2`/`Line2` with pixel widths.
+- **Effects** (`render/effects.ts`) — pooled surface ripples (64) and particles (900) for
+  founding, construction, completion, ruin/abandonment, crises, agreements, technology,
+  reserves, migration arrival, selection and scenario results; active non-drought crises
+  pulse every ~2 s. Pools recycle slots; nothing accumulates.
+- **Camera** — eased flights with a slight arc, distance-dependent rotate/zoom speed,
+  view offset that keeps the planet centred in the space left by the tool rail and
+  inspector (animated as panels open/close), portrait-aware field of view, and a slow
+  auto-rotate after 40 s idle or while a menu is open (never under reduced motion).
+- Planet colour/light attributes are rewritten from simulation state at most ~5×/s
+  (≈ 7 ms for 40,962 vertices). Line geometries are rebuilt only on tick and the old
+  ones disposed. Picking intersects the camera ray with a sphere and walks to the cell.
+- `PlanetView.dispose()` releases geometries, materials, textures, the composer, the
+  effects pools, controls and the renderer.

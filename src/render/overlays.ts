@@ -64,10 +64,10 @@ export interface OverlayContext {
   infra: Float64Array;
 }
 
-const OCEAN_DIM: RGB = hex('#0b1b30');
-const SEQ_AMBER = [hex('#1b1626'), hex('#5a2e3a'), hex('#b5562f'), hex('#f0a63e'), hex('#fff1b8')];
-const SEQ_GREEN = [hex('#2a2018'), hex('#5b5530'), hex('#6f8f3a'), hex('#9bd16a'), hex('#e3ffb0')];
-const SEQ_TEAL = [hex('#0f1a26'), hex('#174a5c'), hex('#2a8f8c'), hex('#7fd8c0'), hex('#e8fff4')];
+const OCEAN_DIM: RGB = hex('#06101f');
+const SEQ_AMBER = [hex('#2a2230'), hex('#5a2e3a'), hex('#b5562f'), hex('#f0a63e'), hex('#fff1b8')];
+const SEQ_GREEN = [hex('#4a3b28'), hex('#5b5530'), hex('#6f8f3a'), hex('#9bd16a'), hex('#e3ffb0')];
+const SEQ_TEAL = [hex('#22303c'), hex('#174a5c'), hex('#2a8f8c'), hex('#7fd8c0'), hex('#e8fff4')];
 const DIVERGE_TEMP = [hex('#2b4c9b'), hex('#6fa3d8'), hex('#eef2f0'), hex('#f2a65e'), hex('#c4372b')];
 const PRECIP = [hex('#c9a46a'), hex('#a8b45e'), hex('#4f9a6a'), hex('#2f7f9a'), hex('#24438f')];
 const DEGRADE = [hex('#3f8f4e'), hex('#b9c454'), hex('#e3a03c'), hex('#c2462e'), hex('#5a1f1a')];
@@ -164,19 +164,19 @@ export const OVERLAYS: OverlayDef[] = [
   },
   {
     id: 'population', label: 'Population', key: 'O', dynamic: true,
-    color: (c, _i, ctx) => (c.owner >= 0 ? ramp(SEQ_AMBER, Math.sqrt((ctx.popOf.get(c.owner) ?? 0) / ctx.maxPop)) : ocean(c) ?? hex('#1d1d24')),
+    color: (c, _i, ctx) => (c.owner >= 0 ? ramp(SEQ_AMBER, Math.sqrt((ctx.popOf.get(c.owner) ?? 0) / ctx.maxPop)) : ocean(c) ?? hex('#33313a')),
     legend: (ctx) => ({ kind: 'gradient', stops: SEQ_AMBER, min: '0', max: fmt(ctx.maxPop), unit: 'settlement population (territory)' }),
     value: (c, _i, ctx) => (c.owner >= 0 ? `Territory of a settlement of ${fmt(ctx.popOf.get(c.owner) ?? 0)}` : 'Unclaimed'),
   },
   {
     id: 'infrastructure', label: 'Infrastructure', key: 'I', dynamic: true,
-    color: (c, i, ctx) => (ctx.infra[i] > 0 ? ramp(SEQ_TEAL, 0.25 + ctx.infra[i] / 5) : c.land ? hex('#1d1d24') : OCEAN_DIM),
+    color: (c, i, ctx) => (ctx.infra[i] > 0 ? ramp(SEQ_TEAL, 0.25 + ctx.infra[i] / 5) : c.land ? hex('#33313a') : OCEAN_DIM),
     legend: () => ({ kind: 'gradient', stops: SEQ_TEAL, min: 'none', max: '4+ structures', unit: 'structures and road links' }),
     value: (_c, i, ctx) => `${ctx.state.buildings.filter((b) => b.cellId === i).length} structure(s), ${ctx.state.roads.filter((r) => r.a === i || r.b === i).length} road link(s)`,
   },
   {
     id: 'trade', label: 'Trade', key: 'T', dynamic: true,
-    color: (c, i, ctx) => (ctx.traffic[i] > 0 ? ramp(SEQ_TEAL, 0.2 + 0.8 * Math.sqrt(ctx.traffic[i] / ctx.maxTraffic)) : c.land ? hex('#1d1d24') : OCEAN_DIM),
+    color: (c, i, ctx) => (ctx.traffic[i] > 0 ? ramp(SEQ_TEAL, 0.2 + 0.8 * Math.sqrt(ctx.traffic[i] / ctx.maxTraffic)) : c.land ? hex('#33313a') : OCEAN_DIM),
     legend: (ctx) => ({ kind: 'gradient', stops: SEQ_TEAL, min: '0', max: `${fmt(ctx.maxTraffic)}/mo`, unit: 'average goods moving through region' }),
     value: (_c, i, ctx) => `${fmt(ctx.traffic[i])} units/month of route traffic`,
   },
@@ -195,7 +195,7 @@ export const OVERLAYS: OverlayDef[] = [
   {
     id: 'migration', label: 'Migration', key: 'G', dynamic: true,
     color: (c, _i, ctx) => {
-      if (c.owner < 0) return c.land ? hex('#1d1d24') : OCEAN_DIM;
+      if (c.owner < 0) return c.land ? hex('#33313a') : OCEAN_DIM;
       const v = ctx.migration.get(c.owner) ?? 0;
       return ramp(MIGRATE, 0.5 + 0.5 * (v / ctx.maxMigration));
     },

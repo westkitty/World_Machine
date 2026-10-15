@@ -1,5 +1,7 @@
 # Validation report
 
+> Updated after the visual finishing pass (see “Visual pass” at the end).
+
 Date: 2026-10-15. Environment: macOS (Apple Silicon), Node 26.11.1, bun 1.3.13, Vite 7.3.7,
 Vitest 3.2.7, TypeScript 5.9.3, Three.js 0.186.1. Browser checks used the Claude desktop
 app's built-in Chromium browser pane.
@@ -133,3 +135,37 @@ targets remain design targets.
 - Firefox and Safari.
 - Playwright: not installed in this environment, so there is no automated browser test suite;
   the browser checks above are manual.
+
+## Visual pass (rendering & UI overhaul)
+
+Re-validated after the overhaul:
+
+- `bun run test`: **54/54 passed** (simulation unchanged by the visual work).
+- `tsc --noEmit` and `bun run build`: pass. JS 816 kB (224 kB gzip, +21 kB for bloom and
+  pixel-width lines), CSS 29 kB (7 kB gzip).
+- Production build served under `/World_Machine/`: app started, **0 console errors,
+  0 failed requests**.
+- Inspected in the browser pane: desktop 1440×900 terrain view (studio light), close-up of
+  routes/shipments/structures, event ripples and particles (founding, crisis), fertility
+  overlay, orbital night side with city lights, title screen over the drifting globe,
+  scenario-success modal, Low quality, phone 375×812.
+- Defects found and fixed during the pass: over-dense clouds; blown-out sun glint and halo
+  under bloom; glows ballooning at close range and at the limb; land/sea confusion in
+  overlays; city lights reading as glowing tiles; migration ripples re-firing on every
+  repaint; planet too close on portrait screens; toasts covering the globe on phones;
+  draw-call stats only counting the last composer pass.
+
+Renderer measurements (browser pane, 1440×900, DPR 1, frames forced synchronously with
+`gl.finish`; the pane was hidden, so these are not real FPS):
+
+| Preset | Frame (CPU + GPU sync) | Draw calls | Triangles |
+| --- | --- | --- | --- |
+| High | ≈ 1.1 ms | 31 | ≈ 180 k |
+| Medium | ≈ 0.3 ms | 30 | ≈ 119 k |
+| Low | ≈ 0.2 ms | 14 | ≈ 83 k |
+
+Lifecycle: across 600 simulated months with repeated effects and overlay switches,
+geometries stayed at 17–18 and textures at 16; JS heap ≈ 43 MB.
+
+Still unverified: real frame rates (desktop and mobile), the adaptive-quality trigger on a
+genuinely slow device, and the look on non-Chromium browsers.

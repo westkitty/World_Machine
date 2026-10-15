@@ -17,15 +17,15 @@ import { button, compact, h, meter, n0, n1, pct, row, section, signed, toneFor }
 export type TabId = 'region' | 'settlement' | 'ledger' | 'trade' | 'policy' | 'scenario' | 'history' | 'compare' | 'crises';
 
 export const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'region', label: 'Region', icon: '⬡' },
-  { id: 'settlement', label: 'Settlement', icon: '⌂' },
-  { id: 'ledger', label: 'Ledger', icon: '≡' },
-  { id: 'trade', label: 'Trade', icon: '⇄' },
-  { id: 'policy', label: 'Policy', icon: '⚖' },
-  { id: 'crises', label: 'Crises', icon: '⚠' },
-  { id: 'scenario', label: 'Objectives', icon: '◎' },
-  { id: 'history', label: 'History', icon: '↺' },
-  { id: 'compare', label: 'Compare', icon: '⑂' },
+  { id: 'region', label: 'Region', icon: 'region' },
+  { id: 'settlement', label: 'Settlement', icon: 'settlement' },
+  { id: 'ledger', label: 'Ledger', icon: 'ledger' },
+  { id: 'trade', label: 'Trade', icon: 'trade' },
+  { id: 'policy', label: 'Policy', icon: 'policy' },
+  { id: 'crises', label: 'Crises', icon: 'crises' },
+  { id: 'scenario', label: 'Objectives', icon: 'objectives' },
+  { id: 'history', label: 'History', icon: 'history' },
+  { id: 'compare', label: 'Compare', icon: 'compare' },
 ];
 
 export function statusGlyph(s: Settlement): string {

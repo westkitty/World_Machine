@@ -321,3 +321,141 @@ label.btn input[type='file'] { display: none; }
   .drawer { top: calc(8px + var(--safe-t)); bottom: calc(8px + var(--safe-b)); height: auto; }
   .bottom { display: none; }
 }
+
+/* ===================================================================
+   Visual finishing layer — instrument-grade materials and motion.
+   =================================================================== */
+:root {
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --edge-light: inset 0 1px 0 rgba(255, 240, 210, 0.07), inset 0 0 0 1px rgba(217, 181, 106, 0.05);
+}
+
+/* Cinematic framing: soft vignette over the globe, never over UI. */
+#stage::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 45% 50%, transparent 55%, rgba(1, 2, 6, 0.55) 100%); }
+
+.ico { display: block; flex: none; }
+
+/* Panels share one material: glass, warm hairline, top edge light, deep shadow. */
+.drawer, .rail, .clock, .overlays, .legend, .camera, .stat, .toast, .modal-card, .banner > * {
+  box-shadow: var(--shadow-panel), var(--edge-light);
+}
+.drawer { background: linear-gradient(180deg, rgba(14, 20, 34, 0.94), rgba(8, 12, 22, 0.94)); }
+.rail, .overlays, .legend, .camera, .clock { background: linear-gradient(180deg, rgba(14, 20, 34, 0.82), rgba(8, 12, 22, 0.82)); }
+
+/* Buttons: tactile press, warm focus halo, smooth state changes. */
+.btn { transition: background .18s var(--ease-out), border-color .18s, color .18s, transform .12s var(--ease-out), box-shadow .18s; }
+.btn:active:not(.disabled) { transform: translateY(1px) scale(0.97); }
+.btn:focus-visible, .tool:focus-visible, .tab:focus-visible, .ov:focus-visible, .mode:focus-visible, .label:focus-visible {
+  outline: none; box-shadow: 0 0 0 2px rgba(3, 5, 11, 0.9), 0 0 0 4px rgba(255, 227, 160, 0.85), 0 0 18px rgba(255, 210, 120, 0.35);
+}
+.btn.on { background: linear-gradient(180deg, rgba(240, 205, 130, 0.38), rgba(217, 181, 106, 0.2)); box-shadow: inset 0 0 0 1px rgba(255, 227, 160, 0.35), 0 0 14px rgba(217, 181, 106, 0.18); }
+.btn.primary { box-shadow: 0 6px 18px rgba(217, 181, 106, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(217, 181, 106, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.btn.iconbtn { width: 34px; padding: 0; }
+.btn .lbl { font-size: 13px; }
+.menu .btn { min-height: 34px; }
+.controls .btn { min-height: 32px; }
+.controls .btn .ico { margin: 0 -1px; }
+
+/* Tool rail: icon tiles with a glowing active indicator. */
+.tool { transition: background .18s, color .18s, transform .15s var(--ease-out), border-color .18s; }
+.tool .icon { color: var(--ink); height: 22px; display: grid; place-items: center; }
+.tool:hover:not(.disabled) { transform: translateX(2px); color: var(--ink); }
+.tool:hover:not(.disabled) .icon { color: var(--brass-hi); }
+.tool.active { background: linear-gradient(90deg, rgba(217, 181, 106, 0.28), rgba(217, 181, 106, 0.08)); }
+.tool.active::before { content: ''; position: absolute; left: -7px; top: 18%; bottom: 18%; width: 3px; border-radius: 3px;
+  background: var(--brass-hi); box-shadow: 0 0 12px rgba(255, 227, 160, 0.8); }
+
+/* Tabs: icon + label with an animated underline. */
+.tab { transition: background .18s, color .18s, border-color .18s; }
+.tab .icon { display: grid; place-items: center; color: var(--brass); }
+.tab.on .icon { color: var(--brass-hi); }
+.tab::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 2px; border-radius: 2px;
+  background: var(--brass-hi); transform: scaleX(0); transition: transform .25s var(--ease-out); }
+.tab.on::after { transform: scaleX(1); }
+
+/* Panel content eases in only when switching tabs. */
+.panel-body.enter { animation: panelIn .32s var(--ease-out); }
+@keyframes panelIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Top stats as instrument readouts. */
+.stat { display: inline-flex; align-items: center; gap: 6px; background: rgba(9, 14, 26, 0.78); }
+.stat .ico { color: var(--brass); }
+.stat.bad .ico { color: var(--bad); }
+.stat.bad { animation: alertGlow 2.4s ease-in-out infinite; }
+@keyframes alertGlow { 50% { box-shadow: var(--shadow-panel), 0 0 0 1px rgba(239, 122, 98, 0.6), 0 0 16px rgba(239, 122, 98, 0.35); } }
+.brand-btn:hover .logo { text-shadow: 0 0 24px rgba(255, 227, 160, 0.9); }
+.logo { transition: text-shadow .3s; animation: logoSpin 24s linear infinite; display: inline-block; }
+@keyframes logoSpin { to { transform: rotate(360deg); } }
+
+/* Month progress: time visibly flowing between simulation ticks. */
+.month-bar { height: 2px; margin-top: 4px; border-radius: 2px; background: rgba(217, 181, 106, 0.14); overflow: hidden; }
+.month-fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, rgba(217, 181, 106, 0.4), var(--brass-hi)); }
+.month-bar.running .month-fill { box-shadow: 0 0 8px rgba(255, 227, 160, 0.7); }
+
+/* Settlement labels: compact chips with a status dot (text glyph kept for accessibility). */
+.label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; font-weight: 500; letter-spacing: 0.01em;
+  background: linear-gradient(180deg, rgba(10, 15, 27, 0.82), rgba(6, 9, 18, 0.82)); border-color: rgba(217, 181, 106, 0.28);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); transition: border-color .2s, color .2s, opacity .2s; }
+.label::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--good); box-shadow: 0 0 8px currentColor; flex: none; }
+.label[data-tone='good']::before { background: #ffd98a; color: #ffd98a; }
+.label[data-tone='warn']::before { background: #f0a050; color: #f0a050; }
+.label[data-tone='bad']::before { background: #e0574a; color: #e0574a; }
+.label.sel { background: linear-gradient(180deg, rgba(60, 46, 18, 0.92), rgba(30, 22, 8, 0.92)); box-shadow: 0 0 0 1px rgba(255, 227, 160, 0.5), 0 0 18px rgba(255, 210, 120, 0.25); }
+
+/* Toasts: compact cards that slide in from the right with an icon chip. */
+.toasts { width: min(320px, 70vw); }
+.toast { align-items: center; padding: 7px 12px 7px 8px; animation: toastIn .38s var(--ease-out); background: linear-gradient(180deg, rgba(14, 20, 34, 0.95), rgba(9, 13, 24, 0.95)); }
+.toast .ic { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: rgba(255, 255, 255, 0.05); flex: none; }
+.toast.good .ic { background: rgba(143, 209, 138, 0.14); }
+.toast.bad .ic { background: rgba(239, 122, 98, 0.16); }
+.toast.warn .ic { background: rgba(240, 180, 90, 0.16); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(24px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* Meters: gradient fills with a soft leading glow. */
+.meter { height: 6px; background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4); }
+.meter-fill { background: linear-gradient(90deg, rgba(111, 209, 196, 0.55), var(--teal)); transition: width .6s var(--ease-out); }
+.meter-fill.good { background: linear-gradient(90deg, rgba(143, 209, 138, 0.5), var(--good)); }
+.meter-fill.warn { background: linear-gradient(90deg, rgba(240, 180, 90, 0.5), var(--warn)); }
+.meter-fill.bad { background: linear-gradient(90deg, rgba(239, 122, 98, 0.5), var(--bad)); }
+
+/* Overlay chips and legend. */
+.ov { transition: color .18s, background .18s, border-color .18s; }
+.ov.on { box-shadow: 0 0 12px rgba(217, 181, 106, 0.18); }
+.ramp { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+
+/* Cards in panels lift slightly on hover. */
+.route, .tech, .crisis, .scard, .mode { transition: border-color .2s, background .2s, transform .2s var(--ease-out); }
+.route:hover, .tech:hover, .scard:hover { border-color: var(--line-strong); background: rgba(255, 255, 255, 0.035); }
+.scard:hover, .mode:hover { transform: translateY(-2px); }
+
+/* Modal: lighter scrim so the drifting planet shows through; card scales in. */
+.modal { background: radial-gradient(ellipse at 40% 50%, rgba(3, 5, 11, 0.25), rgba(3, 5, 11, 0.78)); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+.modal.open .modal-card { animation: cardIn .45s var(--ease-out); }
+@keyframes cardIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+.modal-close { display: grid; place-items: center; transition: background .18s, color .18s; }
+.modal-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--ink); }
+.title-hero h1 { text-shadow: 0 0 40px rgba(217, 181, 106, 0.18); }
+
+/* Boot: an orbiting instrument ring while the world is generated. */
+.boot { gap: 18px; grid-auto-flow: row; place-content: center; }
+.boot::before { content: ''; justify-self: center; width: 54px; height: 54px; border-radius: 50%;
+  border: 1.5px solid rgba(217, 181, 106, 0.2); border-top-color: var(--brass-hi); animation: logoSpin 1.1s linear infinite;
+  box-shadow: 0 0 30px rgba(217, 181, 106, 0.15); }
+
+/* Scrollbars that belong to the instrument. */
+.drawer-body::-webkit-scrollbar, .modal-card::-webkit-scrollbar { width: 8px; }
+.drawer-body::-webkit-scrollbar-thumb, .modal-card::-webkit-scrollbar-thumb { background: rgba(217, 181, 106, 0.22); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+
+@media (max-width: 760px) {
+  .tool:hover:not(.disabled) { transform: none; }
+  .tool.active::before { left: 18%; right: 18%; top: -6px; bottom: auto; width: auto; height: 3px; }
+  .menu .btn .lbl { display: none; }
+  .toast { font-size: 12px; padding: 5px 10px 5px 6px; }
+  .toast:nth-child(n+3) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .logo, .boot::before, .stat.bad { animation: none !important; } }
+.reduced-motion .logo, .reduced-motion .stat.bad { animation: none !important; }

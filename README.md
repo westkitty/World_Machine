@@ -32,11 +32,14 @@ runtime: the production build is a static site.
   a scripted player and losable by neglect in the automated tests.
 - **Strategy comparison** — fork the current world, run two policy sets through the real
   engine for 1–10 years, compare outcomes, and adopt either future.
-- **Three.js planet** — relief, soft coastlines, biome blending that reflects live
-  degradation and frost, ocean with sun glint, atmosphere rim, clouds, night-side city lights
-  driven by population and *met* energy demand, settlement markers sized by population and
-  coloured by wellbeing, structures, roads, animated trade flows, moving shipments, migration
-  arcs, region borders, selection/hover outlines.
+- **Cinematic Three.js planet** — tone-mapped lighting with a readable *studio* key light (or
+  an orbital day/night cycle), soft terminator and dusk band, relief shading, aerial haze,
+  animated ocean swell and glitter, a scattering atmosphere, weather clouds that follow the
+  simulation's rainfall and cast shadows, a galactic sky, and bloom on Medium/High.
+  Night lights cluster into cities sized by population and *met* energy demand. Settlements
+  are lit towers with breathing beacons; trade flows march along pixel-width routes with
+  glowing shipments; migration arcs, drought zones, crisis pulses and pooled ripple/particle
+  effects mark events. Adaptive quality drops glow if frames stay slow.
 - **14 map overlays** — terrain, elevation, temperature, precipitation, fertility, water,
   biomes, resources, population, infrastructure, trade, degradation, conservation, migration;
   each with a legend and a textual value for the selected region.

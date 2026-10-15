@@ -24,6 +24,18 @@ export type Tool =
   | { kind: 'route'; from: number }
   | { kind: 'conserve' };
 
+/** The region a command visibly affects, for in-world feedback. */
+function commandCell(state: WorldState, cmd: Command, fallback: number): number {
+  switch (cmd.type) {
+    case 'found': case 'build': case 'conserve': return cmd.cellId;
+    case 'road': return cmd.toCell;
+    case 'route': return state.settlements.find((s) => s.id === cmd.b)?.cellId ?? fallback;
+    case 'respond': return state.crises.find((c) => c.id === cmd.crisisId)?.cellId ?? fallback;
+    case 'research': return state.settlements.find((s) => s.id === cmd.fundingId)?.cellId ?? fallback;
+    default: return -1;
+  }
+}
+
 export interface NewGameOptions {
   mode: GameMode;
   seed?: string;
@@ -57,7 +69,8 @@ export class App {
 
   constructor(readonly root: HTMLElement) {
     const stage = root.querySelector<HTMLElement>('#stage')!;
-    this.view = new PlanetView(stage, { quality: this.settings.quality, reducedMotion: this.settings.reducedMotion, reducedEffects: this.settings.reducedEffects });
+    this.view = new PlanetView(stage, this.viewOptions());
+    this.view.onAdaptiveQuality = (msg) => this.hud?.toast(msg, 'warn');
     this.view.showBorders = this.settings.showBorders;
     this.view.onContextChange = (lost) => {
       this.hud.toast(lost ? 'Graphics context lost — the simulation continues; restoring…' : 'Graphics restored.', lost ? 'warn' : 'good');
@@ -142,11 +155,15 @@ export class App {
     }, () => this.hud.toast('Could not read that file.', 'bad'));
   }
 
+  private viewOptions() {
+    return { quality: this.settings.quality, reducedMotion: this.settings.reducedMotion, reducedEffects: this.settings.reducedEffects, lighting: this.settings.lighting };
+  }
+
   updateSettings(patch: Partial<Settings>): void {
     this.settings = { ...this.settings, ...patch };
     saveSettings(this.settings);
     this.view.showBorders = this.settings.showBorders;
-    this.view.setOptions({ quality: this.settings.quality, reducedMotion: this.settings.reducedMotion, reducedEffects: this.settings.reducedEffects }, this.state);
+    this.view.setOptions(this.viewOptions(), this.state);
     this.view.syncTick(this.state);
     document.documentElement.classList.toggle('reduced-motion', this.settings.reducedMotion);
   }
@@ -185,6 +202,8 @@ export class App {
   run(cmd: Command, cue: Cue = 'construct'): CommandResult {
     const r = applyCommand(this.state, cmd);
     this.audio.play(r.ok ? cue : 'invalid');
+    const cell = commandCell(this.state, cmd, this.hoverCell);
+    if (cell >= 0) this.view.fx(!r.ok ? 'invalid' : cmd.type === 'found' ? 'founded' : cmd.type === 'conserve' ? 'reserve' : cmd.type === 'route' ? 'agreement' : 'construction', cell);
     this.hud.toast(r.message, r.ok ? 'good' : 'bad');
     if (r.ok) {
       this.view.syncTick(this.state);
@@ -295,6 +314,7 @@ export class App {
     canvas.style.touchAction = 'none';
     canvas.addEventListener('pointerdown', (e) => {
       this.audio.unlock();
+      this.view.noteInput();
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), moved: false });
       if (this.pointers.size > 1) this.gesture = true;
     });
@@ -334,6 +354,7 @@ export class App {
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     this.audio.unlock();
+    this.view.noteInput();
     const k = e.key;
     if (this.hud.modalOpen) { if (k === 'Escape') this.hud.closeModal(); return; }
     const handled = () => e.preventDefault();

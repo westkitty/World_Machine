@@ -68,14 +68,15 @@ export function section(title: string, ...children: Child[]): HTMLElement {
   return h('section.block', h('h3', title), ...children);
 }
 
-export function button(label: string, onClick: () => void, opts: { kind?: string; disabled?: string | false; title?: string; ariaPressed?: boolean } = {}): HTMLElement {
+export function button(label: string | Node | (string | Node)[], onClick: () => void, opts: { kind?: string; disabled?: string | false; title?: string; ariaPressed?: boolean } = {}): HTMLElement {
   const b = h(`button.btn${opts.kind ? `.${opts.kind}` : ''}`, {
     type: 'button',
     title: opts.disabled || opts.title || '',
     'aria-disabled': opts.disabled ? 'true' : undefined,
     'aria-pressed': opts.ariaPressed === undefined ? undefined : String(opts.ariaPressed),
+    'aria-label': typeof label === 'string' ? undefined : opts.title,
     on: { click: () => { if (!opts.disabled) onClick(); } },
-  }, label);
+  }, ...(Array.isArray(label) ? label : [label]));
   if (opts.disabled) b.classList.add('disabled');
   return b;
 }

@@ -33,8 +33,14 @@
   Safari were not exercised.
 - **Camera bookmarks** store on first click (empty slot) or Shift-click; there is no visible
   indicator of which slots are filled.
-- **Line width.** Trade routes, roads and migration arcs use 1-pixel WebGL lines; on high-DPI
-  screens they are thin.
+- **Bloom cost.** Bloom adds ~15 draw calls of full-screen passes on Medium/High. The
+  adaptive governor disables it if frames stay above 30 ms, but this was not exercised on a
+  real slow device.
+- **Studio lighting** is a presentation choice: the key light follows the camera, so the
+  rendered terminator does not represent planetary time of day. Choose *Orbital* in
+  Settings for a physical day/night cycle (season-aware declination).
+- **No screen shake or hit-stop.** Deliberately omitted for a slow strategic globe (motion
+  comfort); emphasis comes from ripples, particles, bloom, sound and toasts instead.
 - **Comparison runs synchronously** on the main thread: a 10-year comparison briefly blocks
   the UI (≈ 1 s on a fast laptop with ~20 settlements).
 - **Balance.** Scenario thresholds were tuned against scripted strategies; human players may
@@ -42,7 +48,7 @@
   first decades; scarcity arrives through growth, soil exhaustion, crises and policy.
 - **Sandbox Unrestricted** is toggled by writing a rules flag directly from the UI rather
   than through the command layer.
-- **Bundle size** is 739 kB (204 kB gzip) in one chunk; it could be split.
+- **Bundle size** is 816 kB (224 kB gzip) in one chunk; it could be split.
 
 ## Follow-up recommendations
 
@@ -51,5 +57,5 @@
 2. Measure frame rates on a mainstream laptop, an iPhone and a mid-range Android device;
    tune quality presets from data.
 3. Move strategy comparison into a Web Worker (the simulation is already DOM-free).
-4. Render routes as screen-space ribbons for legibility on high-DPI displays.
+4. Sample real FPS with the pane visible and on phones; tune bloom resolution per preset.
 5. Playtest scenarios with people and retune thresholds.
