@@ -48,8 +48,10 @@ file-dialog export/import, WebGL context restore, Firefox/Safari, automated brow
 
 ## Repository
 
-Local git repository initialised with `origin` = `https://github.com/westkitty/World_Machine.git`.
-Nothing committed, pushed or deployed.
+`origin` = `github.com/westkitty/World_Machine`; default branch `main` (also
+`feat/initial-world-machine`). GitHub Pages deploys from `main` via
+`.github/workflows/pages.yml` (tests must pass first). Live at
+https://westkitty.github.io/World_Machine/.
 
 ## Safest next step
 

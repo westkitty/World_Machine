@@ -123,11 +123,11 @@ generator state, so a loaded game continues exactly as it would have.
 
 ## Deploying (GitHub Pages or any static host)
 
-`vite.config.ts` uses `base: './'`, so `dist/` works from any subpath, including
-`https://<user>.github.io/World_Machine/`. Verified locally by serving `dist/` under
-`/World_Machine/`. To publish on GitHub Pages, build and upload `dist/` with the official
-`actions/upload-pages-artifact` + `actions/deploy-pages` workflow, or push `dist/` to a
-`gh-pages` branch. Nothing has been deployed by this work.
+**Live:** https://westkitty.github.io/World_Machine/
+
+`.github/workflows/pages.yml` runs on every push to `main`: install (bun), test, build, then
+publish `dist/` with `actions/deploy-pages`. `vite.config.ts` uses `base: './'`, so `dist/`
+also works from any other static host or subpath.
 
 ## Documentation
 
