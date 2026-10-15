@@ -275,7 +275,16 @@ export function policyPanel(app: App): HTMLElement {
     section('Reserves', h('label.field', `Hold ${p.reserveMonths} months of food before exporting`,
       h('input', { type: 'range', min: 1, max: 12, step: 1, value: p.reserveMonths, disabled: !!dis, 'aria-label': 'Reserve months', on: { change: (e: Event) => set({ reserveMonths: Number((e.target as HTMLInputElement).value) }) } }))),
     s.mode === 'sandbox' ? section('Sandbox tools',
-      h('label.check', h('input', { type: 'checkbox', checked: s.rules.unrestricted, on: { change: (e: Event) => { s.rules.unrestricted = (e.target as HTMLInputElement).checked; app.hud.toast(s.rules.unrestricted ? 'UNRESTRICTED: construction, founding, research and responses are free.' : 'Costs restored.', 'warn'); app.hud.refresh(true); } } }),
+      h('label.check', h('input', {
+        type: 'checkbox',
+        checked: s.rules.unrestricted,
+        on: {
+          change: (e: Event) => {
+            const checked = (e.target as HTMLInputElement).checked;
+            app.run({ type: 'rule', patch: { unrestricted: checked } }, 'click');
+          },
+        },
+      }),
         ' Unrestricted construction (costs waived — sandbox only)')) : null,
     section('Technology', h('p.muted', 'Research is paid up front by one settlement and completes after the stated months.'),
       h('div.techs', ...(Object.keys(TECHS) as TechId[]).map((id) => {
@@ -428,10 +437,9 @@ function compareTable(app: App, [A, B]: [BranchResult, BranchResult]): HTMLEleme
   ];
   const better = (a: number, b: number, up: boolean) => (Math.abs(a - b) < 1e-9 ? '' : (a > b) === up ? 'pos' : 'neg');
   const adopt = (r: BranchResult) => {
-    if (app.state.mode === 'observer') { app.hud.toast('Observer mode cannot adopt a strategy.', 'warn'); return; }
-    app.load(r.state);
-    compareResult = null;
-    app.hud.toast(`${r.label} adopted: the world jumps to its future.`, 'good');
+    if (app.adoptBranch(r)) {
+      compareResult = null;
+    }
   };
   return h('div',
     h('table.data', h('thead', h('tr', h('th', 'Metric'), h('th', 'A'), h('th', 'B'))),

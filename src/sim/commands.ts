@@ -8,7 +8,7 @@ import { setKinship } from './systems/migration';
 import { applyPlan, planRoute, relationKey, sendShipment } from './systems/trade';
 import { getTopology, greatCircleKm } from './topology';
 import {
-  GOODS, TRADE_GOODS, type BuildingType, type Good, type Inventory, type LaborFocus, type Policy, type Settlement,
+  GOODS, TRADE_GOODS, type BuildingType, type Good, type Inventory, type LaborFocus, type Policy, type Rules, type Settlement,
   type TechId, type WorldState,
 } from './types';
 
@@ -30,7 +30,8 @@ export type Command =
   | { type: 'conserve'; cellId: number; on: boolean }
   | { type: 'research'; tech: TechId; fundingId: number }
   | { type: 'respond'; crisisId: number; response: string; fundingId?: number }
-  | { type: 'laborFocus'; settlementId: number; focus: LaborFocus };
+  | { type: 'laborFocus'; settlementId: number; focus: LaborFocus }
+  | { type: 'rule'; patch: Partial<Rules> };
 
 export interface CommandResult {
   ok: boolean;
@@ -54,6 +55,10 @@ export function previewCommand(state: WorldState, cmd: Command): CommandResult {
 export function applyCommand(state: WorldState, cmd: Command): CommandResult {
   const mb = modeBlocker(state);
   if (mb) return fail(mb);
+  return executeCommand(state, cmd);
+}
+
+function executeCommand(state: WorldState, cmd: Command): CommandResult {
   switch (cmd.type) {
     case 'found': return found(state, cmd.cellId, cmd.sourceId);
     case 'build': {
@@ -126,6 +131,33 @@ export function applyCommand(state: WorldState, cmd: Command): CommandResult {
       if (!s) return fail('No such settlement.');
       s.laborFocus = cmd.focus;
       return { ok: true, message: `${s.name} labour focus: ${cmd.focus}.` };
+    }
+    case 'rule': {
+      if (state.mode !== 'sandbox') return fail('Rules can only be modified in Sandbox mode.');
+      const r = { ...state.rules, ...cmd.patch };
+      if (cmd.patch.consumptionMult !== undefined) {
+        if (!Number.isFinite(cmd.patch.consumptionMult) || cmd.patch.consumptionMult <= 0) return fail('Consumption multiplier must be a positive number.');
+        r.consumptionMult = Math.max(0.1, Math.min(5, cmd.patch.consumptionMult));
+      }
+      if (cmd.patch.constructionCostMult !== undefined) {
+        if (!Number.isFinite(cmd.patch.constructionCostMult) || cmd.patch.constructionCostMult <= 0) return fail('Construction cost multiplier must be a positive number.');
+        r.constructionCostMult = Math.max(0.1, Math.min(5, cmd.patch.constructionCostMult));
+      }
+      if (cmd.patch.crisisFrequency !== undefined) {
+        if (!Number.isFinite(cmd.patch.crisisFrequency) || cmd.patch.crisisFrequency < 0) return fail('Crisis frequency cannot be negative.');
+        r.crisisFrequency = Math.max(0, Math.min(5, cmd.patch.crisisFrequency));
+      }
+      if (cmd.patch.maxSettlements !== undefined) {
+        if (!Number.isInteger(cmd.patch.maxSettlements) || cmd.patch.maxSettlements < 1) return fail('Maximum settlements must be an integer >= 1.');
+        r.maxSettlements = Math.max(1, Math.min(100, cmd.patch.maxSettlements));
+      }
+      state.rules = r;
+      return {
+        ok: true,
+        message: cmd.patch.unrestricted !== undefined
+          ? (r.unrestricted ? 'UNRESTRICTED: construction, founding, research and responses are free.' : 'Costs restored.')
+          : 'Rules updated.',
+      };
     }
   }
 }

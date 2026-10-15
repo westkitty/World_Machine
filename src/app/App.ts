@@ -10,6 +10,7 @@ import { deserialize, serialize } from '../sim/save';
 import { createScenarioWorld } from '../sim/scenarios';
 import { foundingBlocker, getSettlement } from '../sim/settlements';
 import { planRoute } from '../sim/systems/trade';
+import type { BranchResult } from '../sim/compare';
 import type { BuildingType, GameMode, GenParams, WorldState } from '../sim/types';
 import { PlanetView } from '../render/PlanetView';
 import { Hud } from '../ui/Hud';
@@ -101,6 +102,7 @@ export class App {
   }
 
   load(state: WorldState): void {
+    assertStateValid(state);
     this.state = state;
     this.selectedCell = -1;
     this.tool = { kind: 'inspect' };
@@ -153,6 +155,28 @@ export class App {
         this.hud.toast(`Import failed: ${(e as Error).message}`, 'bad');
       }
     }, () => this.hud.toast('Could not read that file.', 'bad'));
+  }
+
+  adoptBranch(branch: BranchResult): boolean {
+    if (this.state.mode === 'observer') {
+      this.hud.toast('Observer mode cannot adopt a strategy.', 'warn');
+      this.audio.play('invalid');
+      return false;
+    }
+    if (this.state.scenario && this.state.scenario.status !== 'active') {
+      this.hud.toast('Cannot adopt strategy: scenario has already ended.', 'warn');
+      this.audio.play('invalid');
+      return false;
+    }
+    try {
+      this.load(branch.state);
+      this.hud.toast(`${branch.label} adopted: the world jumps to its future.`, 'good');
+      return true;
+    } catch (e) {
+      this.hud.toast(`Cannot adopt branch: ${(e as Error).message}`, 'bad');
+      this.audio.play('invalid');
+      return false;
+    }
   }
 
   private viewOptions() {

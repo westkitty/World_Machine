@@ -45,9 +45,11 @@ src/
 ```
 
 Ownership rules: the simulation never imports from `render/`, `ui/` or `app/`. The renderer
-reads state and never mutates it. The UI changes state only through `App.run(command)` or
-App lifecycle methods (new game, load, adopt branch). The single exception is the Sandbox
-“Unrestricted” checkbox, which toggles the `rules.unrestricted` flag directly.
+reads state and never mutates it. The UI has zero direct writes to simulation state; all player
+interventions execute exclusively through `App.run(command)` (with rule-setting handled via
+the authoritative `rule` command) or lifecycle methods (`load`, `adoptBranch`, `newGame`).
+Command execution in `applyCommand` is strictly transactional: execution runs on a candidate
+clone first so any failure or invalid argument leaves active state 100% byte-identical.
 
 ## Player commands and meaningful interventions
 

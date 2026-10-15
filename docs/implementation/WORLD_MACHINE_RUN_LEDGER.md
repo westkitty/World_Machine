@@ -79,8 +79,36 @@
   - Updated `docs/TECHNICAL.md` with "Player commands and meaningful interventions" section referencing the audit.
 - **Pass Condition & Evidence:**
   - `bun run test tests/audit.test.ts` passed 5/5 tests.
-  - Total automated test suite expanded to 64 tests passing across 4 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`).
+  - Checkpoint commit: `964e9443ba8a3e382e612696ce9ccae370d84ea3` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+- **Next Task:** Checkpoint CP03 — P071: Single authoritative mutation path.
+
+---
+
+### Checkpoint CP03 — P071: Single Authoritative Mutation Path
+
+- **Proposal:** P071 — Single authoritative mutation path
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · L
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP01 & CP02 completed
+- **Implementation Packet:**
+  - Added `{ type: 'rule'; patch: Partial<Rules> }` to `Command` in `src/sim/commands.ts`.
+  - Enforced strict sandbox-only validation and range bounds on all rule modifications.
+  - Made `applyCommand` transactional: commands execute on an isolated clone first; active state is mutated only if validation and execution completely succeed. Any invalid arguments, rejected actions, or errors leave the input state 100% byte-identical.
+  - Replaced the direct UI write in `src/ui/panels.ts` (`s.rules.unrestricted = ...`) with `app.run({ type: 'rule', patch: { unrestricted: checked } }, 'click')`, eliminating the single UI write exception across the entire application.
+  - Added `adoptBranch(branch: BranchResult): boolean` to `src/app/App.ts` enforcing mode and scenario validation before adopting futures.
+  - Added `assertStateValid(state)` in `App.load` to guarantee failed/corrupt loads reject before modifying active game state.
+  - Updated `docs/TECHNICAL.md` to document the zero direct UI writes architecture.
+  - Created test suite `tests/authority.test.ts`.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/authority.test.ts` passed 4/4 tests:
+    - Static audit scanning all `src/ui/*.ts` lines verified 0 direct simulation state mutations.
+    - Automated byte-identical assertions passed across all 14 invalid command permutations.
+    - Rule modification validated in sandbox and strictly rejected in observer and scenario modes.
+    - Failed loads and corrupted state structures rejected before modifying active state.
+  - Total automated test suite expanded to 68 tests passing across 5 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`).
   - `bun run typecheck` passed with 0 errors.
   - `bun run build` built cleanly.
-- **Next Task:** Checkpoint CP03 — P071: Single authoritative mutation path.
+- **Next Task:** Checkpoint CP04 — P082: Versioned save compatibility.
+
 
