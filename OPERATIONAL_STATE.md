@@ -46,7 +46,8 @@ bun run build
   - CP10 (P008): Performance and lifecycle budgets established and verified via `tests/bench.test.ts` (`bun run sim:bench`) and `src/sim/budgets.ts`. All 7 performance budget suites pass.
   - CP11 (P073): Seeded property-based testing verified via `src/sim/property.ts` and `tests/property.test.ts`. Long-run invariant fuzzing (120 ticks, 3 seeds, 240 commands), save/load fuzz continuity, deterministic command replay, and boundary fuzzing pass cleanly.
   - CP12 (P072): Deterministic civilization replay engine verified via `src/sim/replay.ts` and `tests/replay.test.ts`. Canonical dual FNV-1a state hashing, in-flight command recording, periodic checkpoint validation, post-save continuation, divergence reporting, and strict ruleset/format compatibility guards pass cleanly.
-- **135/135 automated Vitest tests** passing across 13 suites.
+  - CP13 (P074): Automated strategy tournament verified via `src/sim/tournament.ts` and `tests/tournament.test.ts`. 5 distinct legal AI strategies, matched-seed environment evaluations (4 seeds), multi-dimensional scorecards (Resilience, Welfare, Ecology, Trade, Composite), win/loss matrices, and proven non-dominance pass cleanly.
+- **139/139 automated Vitest tests** passing across 14 suites.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
@@ -62,4 +63,4 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP13 (P074: Automated strategy tournament)**: implement distinct legal AI strategies and matched-seed tournament scoring resilience, welfare, ecological state, trade, and outcome tradeoffs.
+Proceed with **Checkpoint CP14 (P075: Human playtest program protocol)**: create repeatable uncoached tasks, consent-safe optional local diagnostics and first-session/return-session feedback rubrics.

@@ -471,6 +471,50 @@
   - `bun run test` passed 135/135 Vitest tests across 13 suites in 5.01s.
   - `bun run build` built production bundle cleanly in 1.76s.
   - `bun run sim:bench` passed 7/7 benchmark suites in 1.45s.
-  - Checkpoint commit: to be committed.
+  - Checkpoint commit: `f8fab94aa0d70e97032a9ae7931a2efb5e9d1136` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP13 — P074: Automated strategy tournament.
+
+---
+
+### Checkpoint CP13 — P074: Automated Strategy Tournament
+
+- **Proposal:** P074 — Automated strategy tournament
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** CP12 (P072) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/sim/tournament.ts`:
+    - Defined `AIStrategy` interface: `id`, `name`, `tagline`, `description`, `decide(context): Command[]`.
+    - Implemented 5 distinct legal AI strategies utilizing only authoritative mutation pathways (`applyCommand`):
+      1. **Passive / Laissez-Faire**: Baseline zero-intervention control group.
+      2. **Ecological Preservationist**: Restrained extraction, modest growth, clean energy, reforestation, and nature reserve designations.
+      3. **Industrial Expansionist**: Intensive extraction, rapid mining expansion, masonry roads, maximum population growth.
+      4. **Free-Trade Mercantilist**: Seafaring, cold storage, comprehensive trade route coverage between all settlements, full autonomy.
+      5. **Agrarian Steward**: Balanced food reserves, irrigation, crop rotation, selective farming on fertile soils.
+    - Defined `TournamentEnvironment` interface with matched seed suites (`TERRA-1`, `ARID-DROUGHT-9`, `VERDANT-BASIN-4`, `ISLES-ARCHIPELAGO-7`).
+    - Multi-dimensional scoring model: `evaluateStrategyRun` calculates normalized sub-scores (0–100):
+      - **Resilience**: Settlement survival fraction, food buffer security, crisis resolution.
+      - **Welfare**: Population wellbeing, health, population growth.
+      - **Ecology**: Low degradation, planetary biomass, active nature reserves, green technology adoption.
+      - **Trade**: Active trade routes, total cargo delivered volume.
+      - **Composite**: Weighted multi-dimensional composite.
+    - Tournament engine: `runTournament`:
+      - Runs all strategies across all matched environments on identical initial world states.
+      - Generates complete ranking scorecards by category and composite.
+      - Computes pairwise win/loss matrices across all strategies.
+      - Determines category champions (Resilience, Welfare, Ecology, Trade, Composite).
+      - Verifies that no single strategy dominates every environment by construction (`nonDominanceVerified === true`).
+  - Created test suite `tests/tournament.test.ts` with 4 test suites:
+    - **Legal strategy command execution**: All 5 strategies issue legal commands strictly preserving simulation invariants.
+    - **Matched-seed tournament execution**: Standard tournament across 4 environments generating complete multi-dimensional scorecards and win/loss matrices.
+    - **Multi-dimensional tradeoff verification**: Confirms non-dominance invariant holds, with Preservationist leading in ecology and distinct strategies leading in trade/expansion.
+    - **Pluggable custom strategy evaluation**: Verifies pluggable architecture for custom strategies.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 139/139 Vitest tests across 14 suites in 7.88s.
+  - `bun run build` built production bundle cleanly in 2.34s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 2.24s.
+  - Checkpoint commit: to be committed.
+- **Next Task:** Checkpoint CP14 — P075: Human playtest program protocol.
 
