@@ -49,6 +49,14 @@ reads state and never mutates it. The UI changes state only through `App.run(com
 App lifecycle methods (new game, load, adopt branch). The single exception is the Sandbox
 “Unrestricted” checkbox, which toggles the `rules.unrestricted` flag directly.
 
+## Player commands and meaningful interventions
+
+Player interventions are mediated exclusively through `Command` in `src/sim/commands.ts`.
+Every command validates preconditions, previews costs, produces user feedback, and mutates
+the simulation through authoritative rules. For the full design audit matrix detailing when
+each action is preferable, alternative actions, delayed consequences, and feedback loops,
+see `docs/MEANINGFUL_INTERVENTION_DESIGN_AUDIT.md`.
+
 ## Spherical topology
 
 `buildIcosphere(3)` subdivides an icosahedron three times by edge-midpoint projection

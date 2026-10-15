@@ -53,6 +53,34 @@
     - `representative scale examples agree across inland, coastal, and island topologies in TERRA-1`
     - `formats scale units with descriptive strings and consistent metric values`
   - Total automated test suite expanded from 54 to 59 tests passing (`59 passed (59)`).
+  - Checkpoint commit: `ce6804fd5cd05b1ed70584973c8dc0e8ab50c6bd` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+- **Next Task:** Checkpoint CP02 — P062: Meaningful-intervention design audit.
+
+---
+
+### Checkpoint CP02 — P062: Meaningful-Intervention Design Audit
+
+- **Proposal:** P062 — Meaningful-intervention design audit
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Audit and revise · M
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP01 completed
+- **Implementation Packet:**
+  - Created `docs/MEANINGFUL_INTERVENTION_DESIGN_AUDIT.md`:
+    - Full inventory and audit matrix of all 12 player commands: `found`, `build`, `demolish`, `road`, `route`, `removeRoute`, `routeGoods`, `policy`, `conserve`, `research`, `respond`, `laborFocus`.
+    - Detailed for every action: core intent, costs and prerequisites, when preferable, when an alternative is preferable (with explicit named alternative), multi-month delayed simulation effects, and player feedback loops.
+    - Consolidation analysis confirming zero redundancy in the 12-action architecture.
+  - Created test suite `tests/audit.test.ts`:
+    - Verifies complete 12-command inventory.
+    - Asserts `previewCommand` is non-mutating (state left byte-identical).
+    - Asserts invalid prerequisites return actionable failure messages.
+    - Asserts actionable alternatives for resource dilemmas (`laborFocus` vs `policy` vs `routeGoods`).
+    - Asserts `conserve` (idling structures) vs `demolish` (salvaging materials) distinction.
+  - Updated `docs/TECHNICAL.md` with "Player commands and meaningful interventions" section referencing the audit.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/audit.test.ts` passed 5/5 tests.
+  - Total automated test suite expanded to 64 tests passing across 4 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`).
   - `bun run typecheck` passed with 0 errors.
   - `bun run build` built cleanly.
-- **Next Task:** Checkpoint CP02 — P062: Meaningful-intervention design audit.
+- **Next Task:** Checkpoint CP03 — P071: Single authoritative mutation path.
+
