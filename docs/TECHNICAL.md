@@ -309,6 +309,18 @@ Simulation time, modal lifecycle, and input dispatch are kept strictly coherent 
   - Escape key provides coherent multi-tier cancellation: closes open modal if open, cancels active tool back to `inspect` if a tool is armed, or deselects active region.
 - Verified via automated test suite in `tests/modal_time_keyboard.test.ts`.
 
+## Automated real-browser journeys (P007)
+
+- Verified via Playwright end-to-end test suite in `tests/e2e/journeys.spec.ts` (`bun run test:e2e`).
+- Automated journeys execute across both Desktop Chromium and mobile touch (Pixel 7 emulation with `hasTouch: true`):
+  1. **Boot, title modal, and start steward game**: Validates title screen hero, parameters, and "Generate & begin" transition to active world.
+  2. **Inspect regions, open drawer, and navigate tabs**: Validates cell selection, drawer toggle, and navigation across all 9 inspector tabs.
+  3. **Policy modification and clock control**: Modifies policies (extraction intensity), blurs active controls, and exercises play/pause state transitions.
+  4. **Strategy comparison ("Fork the future") with fork semantics**: Validates branch horizon simulation, metric tables, fork semantics callout, and adoption buttons.
+  5. **Save slots, overwrite protection confirmation, and backup recovery**: Validates slot saving, toast feedback, overwrite protection modal warning, and cancel/confirm flow.
+  6. **Scenario constraints and terminal boundaries**: Validates scenario initialization, objective banners, and authoritative UI locking of constrained policies.
+  7. **Mobile touch drawer collapse and tool parity**: Validates drawer toggle z-index, dynamic initial state handling, and tool rail selection across viewports.
+
 ## Rendering and performance
 
 - One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom

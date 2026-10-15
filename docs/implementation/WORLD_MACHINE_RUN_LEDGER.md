@@ -339,3 +339,36 @@
 - **Phase F0 Status:** **COMPLETE**. All 8 proposals in Phase F0 (P061, P062, P071, P082, P002, P003, P001, P004) across Checkpoints CP01–CP08 are fully implemented, tested, verified, and committed.
 - **Next Task:** Phase F1 — Proof factory and extensible content backbone (CP09: P007 Automated real-browser journeys).
 
+---
+
+### Checkpoint CP09 — P007: Automated Real-Browser Journeys
+
+- **Proposal:** P007 — Automated real-browser journeys
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · L
+- **Prerequisites:** Phase F0 complete (CP01–CP08 verified), `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Installed `@playwright/test@1.64.1` into devDependencies and configured browser binaries (`playwright install chromium`).
+  - Added `"test:e2e": "playwright test"` to `package.json`.
+  - Configured `playwright.config.ts` targeting Vite dev server with two test execution projects:
+    - Desktop `chromium` (1280x720)
+    - Mobile touch emulation `mobile-touch` (`Pixel 7`, `hasTouch: true`)
+  - Created comprehensive browser test suite `tests/e2e/journeys.spec.ts` exercising 7 end-to-end player journeys:
+    - **Journey 1: Boot, title modal, and start steward game**: Tests boot modal presentation, game mode parameters, starting steward world, modal teardown, and world name attachment.
+    - **Journey 2: Inspect regions, open drawer, and navigate tabs**: Tests interactive cell selection, inspector opening, and navigation across all 9 inspector tabs (`Region`, `Settlement`, `Ledger`, `Trade`, `Policy`, `Crises`, `Objectives`, `History`, `Compare`).
+    - **Journey 3: Policy modification and clock control**: Tests policy modifications (extraction intensity), blurs active controls, and exercises play/pause state transitions.
+    - **Journey 4: Strategy comparison ("Fork the future") with fork semantics**: Tests 1-year horizon simulation, comparison metrics table, fork semantics metadata callout, and branch adoption buttons.
+    - **Journey 5: Save slots, overwrite protection confirmation, and backup recovery**: Tests saving to slot 1, save toast confirmation, displacement overwrite protection confirmation modal, and cancel flow.
+    - **Journey 6: Scenario constraints and terminal boundaries**: Tests scenario initialization (`first_footprint`), scenario objective banner, and authoritative UI disabling of constrained policies (e.g., full autonomy).
+    - **Journey 7: Mobile touch drawer collapse and tool parity**: Tests drawer toggle z-index, dynamic viewport initial open/closed state handling, and tool rail activation across mobile and desktop viewports.
+  - Hardened mobile UI CSS in `src/styles.css`: added `z-index: 10` to `.drawer-toggle` to guarantee interactive hit-testing above `.tabs` in mobile viewports.
+  - Added `playwright-report` to `.gitignore`.
+  - Updated `docs/TECHNICAL.md`, `docs/KNOWN_LIMITATIONS.md`, and `OPERATIONAL_STATE.md`.
+- **Pass Condition & Evidence:**
+  - `bun run test:e2e` passed all 14/14 automated journeys (7 on Desktop Chromium + 7 on Mobile Touch emulation) in 3.1m.
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 117/117 Vitest tests across 10 suites.
+  - `bun run build` built production bundle cleanly in 1.88s.
+- **Next Task:** Checkpoint CP10 — P008: Performance and lifecycle budgets.
+

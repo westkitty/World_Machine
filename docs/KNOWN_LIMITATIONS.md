@@ -26,8 +26,7 @@
 
 - **Frame-rate targets unverified.** No FPS measurements were possible (hidden browser pane);
   see `docs/VALIDATION.md` for CPU-side timings. No mobile-device testing.
-- **No automated browser tests.** Playwright was not available; browser behaviour was checked
-  manually. A Playwright suite for the critical journeys is the recommended next addition.
+- **Automated browser tests active (P007/CP09).** Automated real-browser journeys are verified via Playwright (`bun run test:e2e`) across Desktop Chromium and mobile touch (Pixel 7 emulation), testing boot/start, tab navigation, clock controls, strategy comparison with fork semantics, overwrite protections, and scenario constraints.
 - **Audio** was never listened to; it is restrained procedural synthesis, not composed music.
 - **Export/Import** through real file dialogs, **WebGL context loss/restore**, Firefox and
   Safari were not exercised.

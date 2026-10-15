@@ -41,19 +41,22 @@ bun run build
   - CP06 (P003): Scenario constraints authoritative (command-boundary policy enforcement, locked terminal scenarios).
   - CP07 (P001): Forecast ownership and adoption integrity (FNV-1a state fingerprinting, fork semantics, anti-transplantation/anti-rewind checks).
   - CP08 (P004): Modal/time/keyboard coherence (accumulator preservation across pause/resume, modal focus trapping/return, focused button suppression).
+- **Phase F1 (Proof Factory) In Progress (CP09–CP16)**:
+  - CP09 (P007): Automated real-browser journeys verified via Playwright (`tests/e2e/journeys.spec.ts`). 14/14 journeys pass across Desktop Chrome and mobile touch emulation (Pixel 7).
 - **117/117 automated Vitest tests** passing across 10 suites (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`, `tests/forecast_integrity.test.ts`, `tests/modal_time_keyboard.test.ts`).
+- **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
 ## Unverified / known gaps
 
 See `docs/KNOWN_LIMITATIONS.md`. Chiefly: real FPS, real mobile hardware, audio output,
-file-dialog export/import, WebGL context restore, Firefox/Safari, automated browser tests.
+file-dialog export/import, WebGL context restore, Firefox/Safari.
 
 ## Repository
 
-`origin` = `github.com/westkitty/World_Machine`; active branch `feat/world-machine-f0` (tracking `origin/feat/world-machine-f0`).
+`origin` = `github.com/westkitty/World_Machine`; active branch `feat/world-machine-f1` (tracking `origin/feat/world-machine-f1`).
 GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at https://westkitty.github.io/World_Machine/.
 
 ## Safest next step
 
-Begin **Phase F1 — Proof factory and extensible content backbone**, starting with **Checkpoint CP09 (P007: Automated real-browser journeys)**: set up Playwright smoke journeys covering new game, actions, modal input, save/load, and touch emulation.
+Proceed with **Checkpoint CP10 (P008: Performance and lifecycle budgets)**: establish performance benchmark assertions and lifecycle memory budgets.
