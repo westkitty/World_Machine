@@ -1,5 +1,9 @@
 import './styles.css';
 import { App } from './app/App';
+import { getReleaseIdentity } from './app/version';
+
+// Expose immutable release identity globally for automated smoke testing
+(window as unknown as { __WORLD_MACHINE_RELEASE__: ReturnType<typeof getReleaseIdentity> }).__WORLD_MACHINE_RELEASE__ = getReleaseIdentity();
 
 function webglAvailable(): boolean {
   try {

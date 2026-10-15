@@ -48,7 +48,8 @@ bun run build
   - CP12 (P072): Deterministic civilization replay engine verified via `src/sim/replay.ts` and `tests/replay.test.ts`. Canonical dual FNV-1a state hashing, in-flight command recording, periodic checkpoint validation, post-save continuation, divergence reporting, and strict ruleset/format compatibility guards pass cleanly.
   - CP13 (P074): Automated strategy tournament verified via `src/sim/tournament.ts` and `tests/tournament.test.ts`. 5 distinct legal AI strategies, matched-seed environment evaluations (4 seeds), multi-dimensional scorecards (Resilience, Welfare, Ecology, Trade, Composite), win/loss matrices, and proven non-dominance pass cleanly.
   - CP14 (P075): Human playtest program protocol verified via `docs/HUMAN_PLAYTEST_PROGRAM.md`, `src/app/playtest.ts`, and `tests/playtest.test.ts`. Formalized 6 uncoached tasks (A–F), standardized 1–5 Likert feedback rubric, strict opt-in invariant (`PLAYTEST_STORAGE_KEY`), bounded event capacity (500 max), immediate opt-out memory purge, and zero-PII schema report export pass cleanly.
-- **145/145 automated Vitest tests** passing across 15 suites.
+  - CP15 (P083): Verified deployed-release identity verified via `src/app/version.ts`, `docs/DEPLOYMENT_AND_ROLLBACK.md`, and `tests/version.test.ts`. Build commit SHA/ruleset injection, `dist/deploy-receipt.json` build artifact, client runtime release badge (`title-foot`, `settingsScreen`), and non-destructive forward rollback protocol pass cleanly.
+- **148/148 automated Vitest tests** passing across 16 suites.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
@@ -64,4 +65,4 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP15 (P083: Verified deployed-release identity)**: embed build SHA/ruleset, configure post-deploy smoke test and prior-build rollback, distinguishing CI, hosted output, and end-user verification.
+Proceed with **Checkpoint CP16 (P084: Safe data-driven content contracts)**: define schema-validated content for scenarios/objectives/starting states; forbid executable data; verify second scenario added purely as validated data without engine edits (Phase F1 milestone completion gate).

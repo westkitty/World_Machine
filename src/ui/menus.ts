@@ -7,6 +7,7 @@ import type { GameMode, GenParams } from '../sim/types';
 import { DEFAULT_PARAMS } from '../sim/worldgen';
 import { BIOME_LABEL } from '../render/overlays';
 import { button, clear, h, n0, pct } from './dom';
+import { formatReleaseBadge, getReleaseIdentity } from '../app/version';
 
 const MODES: { id: GameMode; title: string; text: string }[] = [
   { id: 'sandbox', title: 'Sandbox', text: 'Generate any world and steward it freely. Optional unrestricted tools.' },
@@ -98,7 +99,8 @@ export function titleScreen(app: App, close: () => void): HTMLElement {
       hasAuto ? button('Continue autosave', () => { app.loadSlot('auto'); close(); }, { kind: 'ghost' }) : null,
       button('Load / import…', () => app.hud.openSaves(), { kind: 'ghost' }),
       button('How to play', () => app.hud.openHelp(), { kind: 'ghost' }),
-      app.state ? button('Back to current world', close, { kind: 'ghost' }) : null),
+      app.state ? button('Back to current world', close, { kind: 'ghost' }) : null,
+      h('span.title-release.muted', { style: 'margin-left: auto; font-size: 0.85em; opacity: 0.7;' }, formatReleaseBadge())),
   );
 }
 
@@ -136,6 +138,10 @@ export function settingsScreen(app: App): HTMLElement {
     h('section.block', h('h3', 'Simulation & saves'),
       check('Autosave every year', st.autosave, (v) => app.updateSettings({ autosave: v })),
       button('Manage saves…', () => app.hud.openSaves(), { kind: 'ghost' })),
+    h('section.block', h('h3', 'Release & identity'),
+      h('p.muted', `Release: ${formatReleaseBadge()}`),
+      h('p.muted', `Commit: ${getReleaseIdentity().commitSha}`),
+      h('p.muted', `Built: ${getReleaseIdentity().buildTimestamp}`)),
   );
 }
 

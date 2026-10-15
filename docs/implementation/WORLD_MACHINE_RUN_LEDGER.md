@@ -557,6 +557,45 @@
   - `bun run test` passed 145/145 Vitest tests across 15 suites in 7.47s.
   - `bun run build` built production bundle cleanly in 1.54s.
   - `bun run sim:bench` passed 7/7 benchmark suites in 1.88s.
-  - Checkpoint commit: to be committed.
+  - Checkpoint commit: `17be84d0f03f5968f8d0c369b5e31c13c6dc20ba` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP15 — P083: Verified deployed-release identity.
+
+---
+
+### Checkpoint CP15 — P083: Verified Deployed-Release Identity
+
+- **Proposal:** P083 — Verified deployed-release identity
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** CP14 (P075) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/app/version.ts`:
+    - Defined `ReleaseIdentity` interface (`version`, `commitSha`, `shortSha`, `buildTimestamp`, `rulesetVersion`, `environment`, `repository`).
+    - `getReleaseIdentity()` with fallback to development and environment detection.
+    - `formatReleaseBadge()` producing readable string e.g. `v1.0.0 (17be84d, ruleset v1)`.
+  - Updated `vite.config.ts`:
+    - Injected build identity macros (`__BUILD_COMMIT_SHA__`, `__BUILD_TIMESTAMP__`, `__BUILD_VERSION__`, `__RULESET_VERSION__`).
+    - Added `deployReceiptPlugin` that generates `dist/deploy-receipt.json` upon bundle completion.
+  - Exposed release identity in the UI and runtime:
+    - `src/ui/menus.ts`: Added release badge to `titleScreen` footer and release section to `settingsScreen`.
+    - `src/main.ts`: Attached immutable release identity to `window.__WORLD_MACHINE_RELEASE__`.
+  - Documented deployment & rollback protocol:
+    - Created `docs/DEPLOYMENT_AND_ROLLBACK.md`:
+      - Three-tier verification model: Tier 1 CI, Tier 2 Hosted Output (`deploy-receipt.json`), Tier 3 End-User Runtime (`window.__WORLD_MACHINE_RELEASE__`).
+      - Deploy receipt schema and live inspection command (`curl .../deploy-receipt.json`).
+      - Automated post-deploy smoke test protocol.
+      - 5-step non-destructive prior-build rollback procedure using forward-reverting commits.
+  - Installed `@types/node` and updated `tsconfig.json` to safely support Node built-ins in Vite plugins and tests.
+  - Created test suite `tests/version.test.ts` with 3 test cases:
+    - Complete release identity validation (valid commit SHA, short SHA prefix, ISO timestamp, ruleset version).
+    - Release badge formatting regex validation.
+    - Verified generation and schema validation of `dist/deploy-receipt.json`.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 148/148 Vitest tests across 16 suites in 4.39s.
+  - `bun run build` built production bundle cleanly in 903ms, generating `dist/deploy-receipt.json`.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.02s.
+  - Checkpoint commit: to be committed.
+- **Next Task:** Checkpoint CP16 — P084: Safe data-driven content contracts (Phase F1 completion gate).
 
