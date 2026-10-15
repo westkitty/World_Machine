@@ -107,8 +107,37 @@
     - Rule modification validated in sandbox and strictly rejected in observer and scenario modes.
     - Failed loads and corrupted state structures rejected before modifying active state.
   - Total automated test suite expanded to 68 tests passing across 5 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`).
+  - Checkpoint commit: `42cda9fd55e2f81a08cb759e95751b57ae648c15` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+- **Next Task:** Checkpoint CP04 — P082: Versioned save compatibility.
+
+---
+
+### Checkpoint CP04 — P082: Versioned Save Compatibility
+
+- **Proposal:** P082 — Versioned save compatibility
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · M
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP01, CP02, CP03 completed
+- **Implementation Packet:**
+  - Strengthened nested state validation in `validateState` (`src/sim/save.ts`):
+    - Enforced strict structural constraints on `rules` (positive finite consumption/construction multipliers, non-negative crisis frequency, boolean unrestricted flag, integer maxSettlements ≥ 1).
+    - Enforced strict invariants on `policy` (valid extraction enum, boolean rationing, growth enum, autonomy enum, bijection tradePriority, integer reserveMonths 1–12).
+    - Enforced structural invariants on `settlements`, `buildings` (types in `BUILDINGS`, living owners, condition in [0, 1], valid status), `roads`, `routes`, `shipments`, `tech`, and `scenario`.
+  - Formalized sequential migration pipeline in `migrate` with `MIGRATIONS` registry and clear rejection for future or pre-v1 schemas.
+  - Verified historical v1 fixtures (`reference-sandbox-v1`, `scenario-first-footprint-v1`, `scenario-long-drought-v1`, `challenge-mode-v1`).
+  - Created test suite `tests/save_compatibility.test.ts`.
+  - Updated `docs/TECHNICAL.md` with Save schema and versioned migration documentation.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/save_compatibility.test.ts` passed 7/7 tests:
+    - All 4 historical v1 save fixtures deserialize, pass validation, and advance 12 months without regression.
+    - Corrupt rules, policies, buildings, and shipments reject with actionable `SaveError` messages.
+    - Future versions (`> 1`) and pre-v1 schemas (`< 1`) cleanly reject.
+    - Serialization and deserialization roundtrip maintains exact data fidelity.
+  - Total automated test suite expanded to 75 tests passing across 6 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`).
   - `bun run typecheck` passed with 0 errors.
   - `bun run build` built cleanly.
-- **Next Task:** Checkpoint CP04 — P082: Versioned save compatibility.
+- **Next Task:** Checkpoint CP05 — P002: Save overwrite/delete protection.
+
 
 

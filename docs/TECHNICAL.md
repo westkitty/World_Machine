@@ -230,7 +230,7 @@ pay 15 food of provisions; relations below −0.3 reduce capacity.
 Relations: cooperation moves toward (trade volume − competition) with memory fade; competition
 comes from shared borders and shared shortages of tradeable goods.
 
-## Save schema
+## Save schema and versioned migration
 
 `{ format: "world-machine-save", version: 1, savedAt, label, state: WorldState }`. `WorldState`
 (see `src/sim/types.ts`) holds seed, generation parameters, rules, RNG state, tick, mode, all 642
@@ -238,9 +238,20 @@ cells’ static and dynamic fields, settlements (inventories, flows, values, his
 roads, routes (paths, history), shipments in transit, relations, policy, technology, climate
 modifiers, crises, scenario progress, expedition, events (≤ 400), metrics (≤ 600, older half
 thinned), migrations (≤ 60) and the last tick’s ledger. Topology and all Three.js objects are
-rebuilt, never saved. `deserialize` rejects non-JSON, foreign formats, newer versions and invalid
-contents (cell count, negative or non-finite inventories, bad RNG state, dangling route
-endpoints) with specific messages; `migrate()` is the hook for future versions.
+rebuilt, never saved.
+
+Save validation in `src/sim/save.ts` (`validateState`) enforces rigorous nested structural invariants:
+- Cell counts, coordinates, elevation, and finite non-negative biomass across all 642 regions.
+- Rules constraints (finite positive consumption/construction multipliers, non-negative crisis frequency, boolean unrestricted flag, integer maxSettlements ≥ 1).
+- Policy invariants (valid extraction enum, boolean rationing, growth enum, autonomy enum, bijection tradePriority of all 4 tradeable goods, integer reserveMonths 1–12).
+- Settlement data (valid inventory object with non-negative finite stocks, non-negative finite population, on-planet cellId).
+- Building records (known building types in `BUILDINGS`, valid on-planet cellIds, living settlement owners, condition in [0, 1], valid status).
+- Graph connectivity (roads with on-planet endpoints, routes with living endpoints).
+- Shipments, tech progression, crises, and scenario invariants.
+
+Migrations chain sequentially via the `MIGRATIONS` registry in `src/sim/save.ts`. Saved civilizations
+from historical v1 schemas are verified by regression fixtures in `tests/fixtures/v1/` and tested via
+`tests/save_compatibility.test.ts`.
 
 ## Rendering and performance
 
