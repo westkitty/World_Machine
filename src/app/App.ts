@@ -1,0 +1,392 @@
+import { AudioEngine, type Cue } from '../audio/AudioEngine';
+import { BUILDINGS } from '../sim/constants';
+import { applyCommand, foundingCost, foundingSource, modeBlocker, previewCommand, type Command, type CommandResult } from '../sim/commands';
+import { planRoad } from '../sim/construction';
+import { createReferenceWorld } from '../sim/create';
+import { formatCost } from '../sim/economy';
+import { assertStateValid, step } from '../sim/engine';
+import { roadIndex } from '../sim/pathfinding';
+import { deserialize, serialize } from '../sim/save';
+import { createScenarioWorld } from '../sim/scenarios';
+import { foundingBlocker, getSettlement } from '../sim/settlements';
+import { planRoute } from '../sim/systems/trade';
+import type { BuildingType, GameMode, GenParams, WorldState } from '../sim/types';
+import { PlanetView } from '../render/PlanetView';
+import { Hud } from '../ui/Hud';
+import { SimClock } from './clock';
+import { loadFromSlot, loadSettings, saveSettings, saveToSlot, type Settings, type Slot } from './storage';
+
+export type Tool =
+  | { kind: 'inspect' }
+  | { kind: 'found' }
+  | { kind: 'build'; building: BuildingType }
+  | { kind: 'road'; from: number }
+  | { kind: 'route'; from: number }
+  | { kind: 'conserve' };
+
+export interface NewGameOptions {
+  mode: GameMode;
+  seed?: string;
+  params?: Partial<GenParams>;
+  scenario?: string;
+}
+
+/**
+ * Application controller and the single owner of the frame loop. It holds the
+ * authoritative WorldState, advances it with a fixed-step clock, routes input
+ * into commands and tells the view and HUD when to refresh. Rendering never
+ * mutates simulation state.
+ */
+export class App {
+  state!: WorldState;
+  readonly view: PlanetView;
+  readonly hud: Hud;
+  readonly clock = new SimClock();
+  readonly audio = new AudioEngine();
+  settings: Settings = loadSettings();
+  tool: Tool = { kind: 'inspect' };
+  selectedCell = -1;
+  hoverCell = -1;
+  private lastFrame = performance.now();
+  private paintTimer = 0;
+  private pendingPaint = false;
+  private pointers = new Map<number, { x: number; y: number; t: number; moved: boolean }>();
+  private gesture = false;
+  private lastHint = '';
+  readonly perf = { frameMs: [] as number[], tickMs: [] as number[] };
+
+  constructor(readonly root: HTMLElement) {
+    const stage = root.querySelector<HTMLElement>('#stage')!;
+    this.view = new PlanetView(stage, { quality: this.settings.quality, reducedMotion: this.settings.reducedMotion, reducedEffects: this.settings.reducedEffects });
+    this.view.showBorders = this.settings.showBorders;
+    this.view.onContextChange = (lost) => {
+      this.hud.toast(lost ? 'Graphics context lost — the simulation continues; restoring…' : 'Graphics restored.', lost ? 'warn' : 'good');
+      if (!lost) this.view.syncWorld(this.state, true);
+    };
+    this.hud = new Hud(this);
+    this.bindInput(stage);
+    this.newGame({ mode: 'sandbox' }, false);
+    this.clock.setSpeed(0);
+    this.hud.refresh(true);
+    requestAnimationFrame(this.loop);
+  }
+
+  // ---------------------------------------------------------------- game lifecycle
+
+  newGame(opts: NewGameOptions, announce = true): void {
+    let state: WorldState;
+    if ((opts.mode === 'scenario' || opts.mode === 'challenge') && opts.scenario) {
+      state = createScenarioWorld(opts.scenario, opts.mode === 'challenge');
+    } else {
+      state = createReferenceWorld(opts.seed || 'TERRA-1', opts.params ?? {}, opts.mode === 'observer' ? 'observer' : 'sandbox');
+    }
+    this.load(state);
+    if (announce) {
+      this.hud.toast(state.scenario ? `Scenario begun: ${state.scenario.id.replace(/_/g, ' ')}` : `New ${state.mode} world “${state.seed}”.`, 'info');
+      this.clock.setSpeed(1);
+    }
+  }
+
+  load(state: WorldState): void {
+    this.state = state;
+    this.selectedCell = -1;
+    this.tool = { kind: 'inspect' };
+    this.view.setSelection(-1);
+    this.view.syncWorld(state);
+    this.hud.onWorld();
+    const first = state.settlements.find((s) => s.alive);
+    if (first) this.view.focusCell(first.cellId, 3.0);
+  }
+
+  restart(): void {
+    const s = this.state;
+    if (s.scenario) this.newGame({ mode: s.mode, scenario: s.scenario.id });
+    else this.newGame({ mode: s.mode, seed: s.seed, params: s.params });
+  }
+
+  saveSlot(slot: Slot): void {
+    const r = saveToSlot(this.state, slot, '');
+    this.hud.toast(r.message, r.ok ? 'good' : 'bad');
+    this.hud.refresh(true);
+  }
+
+  loadSlot(slot: Slot): void {
+    try {
+      this.load(loadFromSlot(slot));
+      this.clock.setSpeed(0);
+      this.hud.toast('Game loaded. Paused — press Space to continue.', 'good');
+    } catch (e) {
+      this.hud.toast((e as Error).message, 'bad');
+    }
+  }
+
+  exportSave(): void {
+    const blob = new Blob([serialize(this.state, 'export')], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `world-machine-${this.state.seed}-t${this.state.tick}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    this.hud.toast('Save exported as a JSON file.', 'good');
+  }
+
+  importSave(file: File): void {
+    file.text().then((text) => {
+      try {
+        this.load(deserialize(text));
+        this.clock.setSpeed(0);
+        this.hud.toast(`Imported “${file.name}”. Paused.`, 'good');
+      } catch (e) {
+        this.hud.toast(`Import failed: ${(e as Error).message}`, 'bad');
+      }
+    }, () => this.hud.toast('Could not read that file.', 'bad'));
+  }
+
+  updateSettings(patch: Partial<Settings>): void {
+    this.settings = { ...this.settings, ...patch };
+    saveSettings(this.settings);
+    this.view.showBorders = this.settings.showBorders;
+    this.view.setOptions({ quality: this.settings.quality, reducedMotion: this.settings.reducedMotion, reducedEffects: this.settings.reducedEffects }, this.state);
+    this.view.syncTick(this.state);
+    document.documentElement.classList.toggle('reduced-motion', this.settings.reducedMotion);
+  }
+
+  // ---------------------------------------------------------------- simulation
+
+  /** Advance exactly one month (used by the Step control). */
+  stepOnce(): void {
+    if (!this.clock.paused) this.clock.setSpeed(0);
+    this.runTicks(1);
+  }
+
+  private runTicks(n: number): void {
+    for (let i = 0; i < n; i++) {
+      const before = this.state.scenario?.status;
+      const t0 = performance.now();
+      step(this.state);
+      this.perf.tickMs.push(performance.now() - t0);
+      if (this.perf.tickMs.length > 240) this.perf.tickMs.shift();
+      if (import.meta.env.DEV) assertStateValid(this.state);
+      this.hud.onEvents(this.state.events);
+      if (this.settings.autosave && this.state.tick % 12 === 0) saveToSlot(this.state, 'auto', 'autosave');
+      if (before === 'active' && this.state.scenario && this.state.scenario.status !== 'active') {
+        this.clock.setSpeed(0);
+        this.audio.play(this.state.scenario.status === 'success' ? 'success' : 'failure');
+        this.hud.scenarioEnded();
+        break;
+      }
+    }
+    this.pendingPaint = true;
+    this.hud.refresh();
+  }
+
+  // ---------------------------------------------------------------- commands & tools
+
+  run(cmd: Command, cue: Cue = 'construct'): CommandResult {
+    const r = applyCommand(this.state, cmd);
+    this.audio.play(r.ok ? cue : 'invalid');
+    this.hud.toast(r.message, r.ok ? 'good' : 'bad');
+    if (r.ok) {
+      this.view.syncTick(this.state);
+      this.hud.refresh(true);
+    }
+    return r;
+  }
+
+  setTool(tool: Tool): void {
+    const blocked = tool.kind !== 'inspect' ? modeBlocker(this.state) : null;
+    if (blocked) { this.hud.toast(blocked, 'warn'); this.audio.play('invalid'); return; }
+    this.tool = tool;
+    this.lastHint = '';
+    this.hud.onTool();
+    this.updateHover(this.hoverCell);
+  }
+
+  select(cell: number, focus = false): void {
+    this.selectedCell = cell;
+    this.view.setSelection(cell);
+    if (focus && cell >= 0) this.view.focusCell(cell);
+    this.hud.onSelect();
+  }
+
+  /** Describe what the active tool would do at a cell: valid/invalid plus cost or reason. */
+  toolHint(cell: number): { valid: boolean; text: string } | null {
+    const s = this.state;
+    const t = this.tool;
+    if (cell < 0 || t.kind === 'inspect') return null;
+    switch (t.kind) {
+      case 'found': {
+        const b = foundingBlocker(s, cell);
+        if (b) return { valid: false, text: b };
+        const src = foundingSource(s, cell);
+        if (!src) return { valid: false, text: 'No settlement can spare settlers.' };
+        if (src === 'expedition') return { valid: true, text: `Land the expedition here (${s.expedition!.population} settlers).` };
+        const r = previewCommand(s, { type: 'found', cellId: cell });
+        return { valid: r.ok, text: r.ok ? `Found from ${src.name}: 400 settlers, ${formatCost(foundingCost(s))}.` : r.message };
+      }
+      case 'build': {
+        const r = previewCommand(s, { type: 'build', building: t.building, cellId: cell });
+        const def = BUILDINGS[t.building];
+        return { valid: r.ok, text: r.ok ? `${def.label}: ${formatCost(r.cost ?? {})}, ${def.months} months.` : r.message };
+      }
+      case 'road': {
+        if (t.from < 0) return { valid: s.cells[cell].land, text: s.cells[cell].land ? 'Choose the road’s first region.' : 'Roads need land.' };
+        const plan = planRoad(s, t.from, cell);
+        if (typeof plan === 'string') return { valid: false, text: plan };
+        return { valid: true, text: `${Math.round(plan.newKm)} km of road paid by ${plan.payer.name}: ${formatCost(plan.cost)}.` };
+      }
+      case 'route': {
+        const owner = s.cells[cell].owner;
+        const target = getSettlement(s, owner);
+        if (!target || target.cellId !== cell) return { valid: false, text: 'Choose a settlement centre.' };
+        if (t.from < 0) return { valid: true, text: `Start a route at ${target.name}.` };
+        const from = getSettlement(s, t.from);
+        if (!from) return { valid: false, text: 'Origin settlement is gone.' };
+        const plan = planRoute(s, from, target, roadIndex(s.roads));
+        if (typeof plan === 'string') return { valid: false, text: plan };
+        return { valid: true, text: `${plan.mode === 'sea' ? 'Sea' : 'Land'} route ${Math.round(plan.distanceKm)} km · ${plan.travelMonths} mo · loss ${Math.round(plan.lossRate * 100)}% · ${Math.round(plan.capacity)}/mo` };
+      }
+      case 'conserve': {
+        const c = s.cells[cell];
+        if (!c.land) return { valid: false, text: 'Only land can be a reserve.' };
+        const st = getSettlement(s, c.owner);
+        if (st && st.cellId === cell) return { valid: false, text: 'A settlement centre cannot be a reserve.' };
+        return { valid: true, text: c.conserved ? 'Lift this reserve.' : 'Designate a reserve: no extraction; faster recovery.' };
+      }
+    }
+  }
+
+  private applyTool(cell: number): void {
+    const t = this.tool;
+    const s = this.state;
+    if (t.kind === 'inspect' || cell < 0) { this.select(cell); this.audio.play('click'); return; }
+    switch (t.kind) {
+      case 'found': if (this.run({ type: 'found', cellId: cell }, 'found').ok) { this.select(cell); this.setTool({ kind: 'inspect' }); } break;
+      case 'build': this.run({ type: 'build', building: t.building, cellId: cell }); break;
+      case 'road':
+        if (t.from < 0) { if (s.cells[cell].land) { this.tool = { kind: 'road', from: cell }; this.hud.onTool(); this.audio.play('click'); } }
+        else if (this.run({ type: 'road', fromCell: t.from, toCell: cell }).ok) { this.tool = { kind: 'road', from: -1 }; this.hud.onTool(); }
+        break;
+      case 'route': {
+        const owner = getSettlement(s, s.cells[cell].owner);
+        if (!owner || owner.cellId !== cell) { this.hud.toast('Choose a settlement centre (the glowing marker).', 'warn'); this.audio.play('invalid'); break; }
+        if (t.from < 0) { this.tool = { kind: 'route', from: owner.id }; this.hud.onTool(); this.audio.play('click'); }
+        else if (this.run({ type: 'route', a: t.from, b: owner.id }, 'trade').ok) { this.tool = { kind: 'route', from: -1 }; this.hud.onTool(); }
+        break;
+      }
+      case 'conserve': this.run({ type: 'conserve', cellId: cell, on: !s.cells[cell].conserved }, 'complete'); break;
+    }
+    this.updateHover(cell, true);
+  }
+
+  private updateHover(cell: number, force = false): void {
+    if (cell === this.hoverCell && !force) return;
+    this.hoverCell = cell;
+    const hint = this.toolHint(cell);
+    this.view.setHover(cell, hint ? hint.valid : null);
+    const text = hint?.text ?? '';
+    if (text !== this.lastHint || force) { this.lastHint = text; this.hud.setHint(hint); }
+  }
+
+  // ---------------------------------------------------------------- input
+
+  private bindInput(stage: HTMLElement): void {
+    const canvas = this.view.renderer.domElement;
+    canvas.style.touchAction = 'none';
+    canvas.addEventListener('pointerdown', (e) => {
+      this.audio.unlock();
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), moved: false });
+      if (this.pointers.size > 1) this.gesture = true;
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const p = this.pointers.get(e.pointerId);
+      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) p.moved = true;
+      if (e.pointerType === 'mouse') {
+        this.updateHover(this.view.pick(e.clientX, e.clientY));
+        this.hud.moveHint(e.clientX, e.clientY);
+      }
+    });
+    const end = (e: PointerEvent) => {
+      const p = this.pointers.get(e.pointerId);
+      this.pointers.delete(e.pointerId);
+      const wasGesture = this.gesture;
+      if (this.pointers.size === 0) this.gesture = false;
+      // A tap is short and still; drags and pinches never select.
+      if (!p || p.moved || wasGesture || performance.now() - p.t > 650 || e.type === 'pointercancel') return;
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      const cell = this.view.pick(e.clientX, e.clientY);
+      if (e.pointerType !== 'mouse') { this.updateHover(cell); this.hud.moveHint(e.clientX, e.clientY); }
+      this.applyTool(cell);
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', end);
+    canvas.addEventListener('pointerleave', () => { this.updateHover(-1); });
+    canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); this.setTool({ kind: 'inspect' }); });
+    window.addEventListener('keydown', (e) => this.onKey(e));
+    stage.addEventListener('dblclick', (e) => {
+      const cell = this.view.pick(e.clientX, e.clientY);
+      if (cell >= 0) this.view.focusCell(cell, Math.max(1.5, this.view.cameraDistance * 0.7));
+    });
+  }
+
+  private onKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    this.audio.unlock();
+    const k = e.key;
+    if (this.hud.modalOpen) { if (k === 'Escape') this.hud.closeModal(); return; }
+    const handled = () => e.preventDefault();
+    if (k === ' ') { this.clock.togglePause(); this.hud.refresh(true); handled(); }
+    else if (k === '.' || k === '>') { this.stepOnce(); handled(); }
+    else if (k >= '1' && k <= '4') { this.clock.setSpeed(Number(k)); this.hud.refresh(true); }
+    else if (k === 'Escape') this.setTool({ kind: 'inspect' });
+    else if (k === 'q' || k === 'Q') this.setTool({ kind: 'inspect' });
+    else if (k === 'n' || k === 'N') this.setTool({ kind: 'found' });
+    else if (k === 'r' || k === 'R') this.setTool({ kind: 'road', from: -1 });
+    else if (k === 't' || k === 'T') this.setTool({ kind: 'route', from: -1 });
+    else if (k === 'c' || k === 'C') this.setTool({ kind: 'conserve' });
+    else if (k === 'h' || k === 'H' || k === '?') this.hud.openHelp();
+    else if (k === '[' || k === ']') this.hud.cycleOverlay(k === ']' ? 1 : -1);
+    else if (k === '+' || k === '=') this.view.zoomBy(0.85);
+    else if (k === '-' || k === '_') this.view.zoomBy(1.18);
+    else if (k === 'Home') this.view.resetCamera();
+    else if (k.startsWith('Arrow')) {
+      const az = k === 'ArrowLeft' ? 0.12 : k === 'ArrowRight' ? -0.12 : 0;
+      const el = k === 'ArrowUp' ? 0.1 : k === 'ArrowDown' ? -0.1 : 0;
+      this.rotateCamera(az, el);
+      handled();
+    }
+  }
+
+  rotateCamera(az: number, el: number): void {
+    const p = this.view.camera.position;
+    const r = p.length();
+    const theta = Math.atan2(p.x, p.z) + az;
+    let phi = Math.acos(p.y / r) - el;
+    phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+    p.set(r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.cos(theta));
+  }
+
+  // ---------------------------------------------------------------- frame loop
+
+  private loop = (now: number): void => {
+    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
+    this.perf.frameMs.push(dt * 1000);
+    if (this.perf.frameMs.length > 240) this.perf.frameMs.shift();
+    const ticks = this.clock.advance(dt);
+    if (ticks > 0 && !this.hud.modalOpen) this.runTicks(ticks);
+    // Repaint planet colours at most ~5 times a second regardless of speed.
+    this.paintTimer -= dt;
+    if (this.pendingPaint && this.paintTimer <= 0) {
+      this.view.syncTick(this.state);
+      this.pendingPaint = false;
+      this.paintTimer = 0.2;
+    }
+    this.view.frame(dt, this.state, this.clock.paused ? 0 : this.clock.phase);
+    this.hud.frame();
+    this.audio.update(dt, !this.clock.paused);
+    requestAnimationFrame(this.loop);
+  };
+}
