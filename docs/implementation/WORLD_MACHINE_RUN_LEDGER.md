@@ -515,6 +515,48 @@
   - `bun run test` passed 139/139 Vitest tests across 14 suites in 7.88s.
   - `bun run build` built production bundle cleanly in 2.34s.
   - `bun run sim:bench` passed 7/7 benchmark suites in 2.24s.
-  - Checkpoint commit: to be committed.
+  - Checkpoint commit: `6fbbfcf23be31f3e0c2752390f470e42422390dd` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP14 — P075: Human playtest program protocol.
+
+---
+
+### Checkpoint CP14 — P075: Human Playtest Program Protocol
+
+- **Proposal:** P075 — Human playtest program protocol
+- **Phase:** F1 (Proof factory and extensible content backbone)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Ongoing · M
+- **Prerequisites:** CP13 (P074) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `docs/HUMAN_PLAYTEST_PROGRAM.md`:
+    - Defined 6 standardized repeatable uncoached tasks (Task A: Orientation & Inspection, Task B: Stewardship & Intervention, Task C: Commerce & Connection, Task D: Crisis Navigation, Task E: Future Forecasting, Task F: Continuity & Return).
+    - Uncoached facilitator protocol and rules (no prompting/leading questions, silent observation, treating confusion as actionable feedback).
+    - Standardized feedback rubric (1–5 Likert scale for Perceived Causality, Steward Agency, Enjoyment/Engagement, Return-Session Comprehension).
+    - Privacy charter: 100% local, strictly opt-in, zero network telemetry, zero PII.
+  - Created `src/app/playtest.ts`:
+    - `PlaytestTracker` class managing privacy-first local diagnostics.
+    - Strict opt-in invariant (`PLAYTEST_STORAGE_KEY = 'wm:playtest:opt_in'`). Disabled by default.
+    - Milestone logging with bounded capacity (capped at 500 events to prevent memory growth).
+    - Standardized task completion tracking (`UNCOACHED_TASKS`).
+    - Confusion points flagging (`logConfusion`).
+    - Rubric submission (`submitRubric`).
+    - Full report export (`exportReport`, `exportJson`) matching `PlaytestSessionReport` schema.
+    - Immediate memory purge upon revoking opt-in.
+  - Integrated into `src/app/App.ts`:
+    - Attached `readonly playtest = getPlaytestTracker()` to `App` (inspectable via `window.worldMachine.playtest`).
+    - Wired diagnostic event logging into `newGame`, `load`, `run`, `select`, and `adoptBranch`.
+  - Created test suite `tests/playtest.test.ts` with 6 test suites:
+    - **Opt-in invariant**: Zero events recorded when opted out by default.
+    - **Opt-in milestone logging**: Captures events, tasks, and confusion points when player opts in.
+    - **Opt-out purge**: Revoking opt-in immediately clears all diagnostic history from memory.
+    - **Feedback rubric**: Captures complete multi-dimensional Likert ratings.
+    - **Capacity bounding**: Bounded at 500 events across long sessions.
+    - **Schema & PII verification**: Export JSON matches schema contract with zero personal data.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 145/145 Vitest tests across 15 suites in 7.47s.
+  - `bun run build` built production bundle cleanly in 1.54s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.88s.
+  - Checkpoint commit: to be committed.
+- **Next Task:** Checkpoint CP15 — P083: Verified deployed-release identity.
 

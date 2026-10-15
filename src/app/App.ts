@@ -17,6 +17,7 @@ import { PlanetView } from '../render/PlanetView';
 import { Hud } from '../ui/Hud';
 import { SimClock } from './clock';
 import { deleteSlot, getBackup, loadFromSlot, loadSettings, restoreBackup, saveSettings, saveToSlot, slotName, type Settings, type Slot } from './storage';
+import { getPlaytestTracker, type PlaytestTracker } from './playtest';
 
 export type Tool =
   | { kind: 'inspect' }
@@ -57,6 +58,7 @@ export class App {
   readonly hud: Hud;
   readonly clock = new SimClock();
   readonly audio = new AudioEngine();
+  readonly playtest: PlaytestTracker = getPlaytestTracker();
   settings: Settings = loadSettings();
   tool: Tool = { kind: 'inspect' };
   selectedCell = -1;
@@ -106,6 +108,7 @@ export class App {
     assertStateValid(state);
     invalidateForecast();
     this.state = state;
+    this.playtest.logEvent('load_game', 'save', `Tick ${state.tick}`, state.tick);
     this.clock.reset();
     this.selectedCell = -1;
     this.tool = { kind: 'inspect' };
@@ -198,6 +201,7 @@ export class App {
       return false;
     }
     try {
+      this.playtest.logEvent('adopt_branch', 'forecast', branch.label, this.state.tick);
       this.load(branch.state);
       this.hud.toast(`${branch.label} adopted: the world jumps to its future.`, 'good');
       return true;
@@ -263,6 +267,7 @@ export class App {
     if (cell >= 0) this.view.fx(!r.ok ? 'invalid' : cmd.type === 'found' ? 'founded' : cmd.type === 'conserve' ? 'reserve' : cmd.type === 'route' ? 'agreement' : 'construction', cell);
     this.hud.toast(r.message, r.ok ? 'good' : 'bad');
     if (r.ok) {
+      this.playtest.logEvent(`cmd:${cmd.type}`, 'stewardship', r.message, this.state.tick);
       this.view.syncTick(this.state);
       this.hud.refresh(true);
     }
@@ -280,6 +285,7 @@ export class App {
 
   select(cell: number, focus = false): void {
     this.selectedCell = cell;
+    if (cell >= 0) this.playtest.logEvent('select_cell', 'navigation', `Cell ${cell}`, this.state.tick);
     this.view.setSelection(cell);
     if (focus && cell >= 0) this.view.focusCell(cell);
     this.hud.onSelect();

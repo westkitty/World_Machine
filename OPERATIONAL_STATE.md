@@ -47,7 +47,8 @@ bun run build
   - CP11 (P073): Seeded property-based testing verified via `src/sim/property.ts` and `tests/property.test.ts`. Long-run invariant fuzzing (120 ticks, 3 seeds, 240 commands), save/load fuzz continuity, deterministic command replay, and boundary fuzzing pass cleanly.
   - CP12 (P072): Deterministic civilization replay engine verified via `src/sim/replay.ts` and `tests/replay.test.ts`. Canonical dual FNV-1a state hashing, in-flight command recording, periodic checkpoint validation, post-save continuation, divergence reporting, and strict ruleset/format compatibility guards pass cleanly.
   - CP13 (P074): Automated strategy tournament verified via `src/sim/tournament.ts` and `tests/tournament.test.ts`. 5 distinct legal AI strategies, matched-seed environment evaluations (4 seeds), multi-dimensional scorecards (Resilience, Welfare, Ecology, Trade, Composite), win/loss matrices, and proven non-dominance pass cleanly.
-- **139/139 automated Vitest tests** passing across 14 suites.
+  - CP14 (P075): Human playtest program protocol verified via `docs/HUMAN_PLAYTEST_PROGRAM.md`, `src/app/playtest.ts`, and `tests/playtest.test.ts`. Formalized 6 uncoached tasks (A–F), standardized 1–5 Likert feedback rubric, strict opt-in invariant (`PLAYTEST_STORAGE_KEY`), bounded event capacity (500 max), immediate opt-out memory purge, and zero-PII schema report export pass cleanly.
+- **145/145 automated Vitest tests** passing across 15 suites.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
@@ -63,4 +64,4 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP14 (P075: Human playtest program protocol)**: create repeatable uncoached tasks, consent-safe optional local diagnostics and first-session/return-session feedback rubrics.
+Proceed with **Checkpoint CP15 (P083: Verified deployed-release identity)**: embed build SHA/ruleset, configure post-deploy smoke test and prior-build rollback, distinguishing CI, hosted output, and end-user verification.
