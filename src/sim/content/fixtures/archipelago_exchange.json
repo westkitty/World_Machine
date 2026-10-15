@@ -1,0 +1,137 @@
+{
+  "meta": {
+    "id": "archipelago_exchange",
+    "title": "Archipelago Exchange",
+    "tagline": "Connect three maritime settlements into a resilient trade ring.",
+    "brief": "Three isolated island communities need inter-island coordination. Connect them with maritime routes and maintain high wellbeing and food security across the archipelago.",
+    "author": "Maritime Federation Archivist",
+    "license": "MIT",
+    "version": 1,
+    "schemaVersion": 1
+  },
+  "worldgen": {
+    "seed": "ARCHIPELAGO-EXCHANGE-2",
+    "oceanCoverage": 0.72,
+    "rainfallMult": 1.1,
+    "tempShift": 1.0
+  },
+  "rules": {
+    "deadline": 144,
+    "holdMonths": 6,
+    "constraints": [
+      "Connect all three island communities into a single active network",
+      "Ensure food reserves remain above 2.5 months across all islands",
+      "Maintain average civilizational wellbeing above 50%"
+    ],
+    "policyConstraints": {
+      "allowedAutonomy": ["limited", "full"],
+      "rationale": "Archipelago communities require local autonomy for maritime logistics."
+    }
+  },
+  "setup": {
+    "mode": "settlements",
+    "settlements": [
+      {
+        "name": "Coral Haven",
+        "population": 1800,
+        "supplies": {
+          "food": 12000,
+          "water": 4000,
+          "timber": 3000,
+          "ore": 1200
+        },
+        "siteCriteria": {
+          "requireCoastal": true,
+          "minDistanceKm": 2500,
+          "preferDistinctLandmasses": true
+        },
+        "initialBuildings": [
+          { "type": "farm", "count": 2 },
+          { "type": "port", "count": 1 }
+        ]
+      },
+      {
+        "name": "Isle of Forge",
+        "population": 1500,
+        "supplies": {
+          "food": 8000,
+          "water": 3500,
+          "timber": 2500,
+          "ore": 3500
+        },
+        "siteCriteria": {
+          "requireCoastal": true,
+          "minDistanceKm": 2500,
+          "preferDistinctLandmasses": true
+        },
+        "initialBuildings": [
+          { "type": "farm", "count": 1 },
+          { "type": "mine", "count": 1 },
+          { "type": "port", "count": 1 }
+        ]
+      },
+      {
+        "name": "Timber Shoals",
+        "population": 1600,
+        "supplies": {
+          "food": 9000,
+          "water": 3800,
+          "timber": 4500,
+          "ore": 900
+        },
+        "siteCriteria": {
+          "requireCoastal": true,
+          "minDistanceKm": 2500,
+          "preferDistinctLandmasses": true
+        },
+        "initialBuildings": [
+          { "type": "farm", "count": 2 },
+          { "type": "port", "count": 1 }
+        ]
+      }
+    ],
+    "initialPolicy": {
+      "autonomy": "limited",
+      "rationing": false
+    }
+  },
+  "objectives": [
+    {
+      "id": "connected_ring",
+      "label": "Connected Archipelago",
+      "type": "min_connected_settlements",
+      "target": 3
+    },
+    {
+      "id": "archipelago_population",
+      "label": "Total Population",
+      "type": "min_population",
+      "target": 4500
+    },
+    {
+      "id": "food_security",
+      "label": "Food Reserves",
+      "type": "min_food_reserve_months",
+      "targetMonths": 2.5
+    },
+    {
+      "id": "island_wellbeing",
+      "label": "Civilizational Wellbeing",
+      "type": "min_wellbeing",
+      "targetRatio": 0.5
+    }
+  ],
+  "failure": {
+    "requireLivingSettlements": true,
+    "minTotalPopulation": 500,
+    "customMessages": {
+      "allDied": "All archipelago settlements collapsed.",
+      "depopulated": "Population collapsed below sustainable levels."
+    }
+  },
+  "risks": {
+    "trackShortages": true,
+    "trackFoodReserveMonths": 2,
+    "trackWaterReserveMonths": 1.5
+  }
+}

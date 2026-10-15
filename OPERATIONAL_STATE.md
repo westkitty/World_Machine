@@ -49,7 +49,9 @@ bun run build
   - CP13 (P074): Automated strategy tournament verified via `src/sim/tournament.ts` and `tests/tournament.test.ts`. 5 distinct legal AI strategies, matched-seed environment evaluations (4 seeds), multi-dimensional scorecards (Resilience, Welfare, Ecology, Trade, Composite), win/loss matrices, and proven non-dominance pass cleanly.
   - CP14 (P075): Human playtest program protocol verified via `docs/HUMAN_PLAYTEST_PROGRAM.md`, `src/app/playtest.ts`, and `tests/playtest.test.ts`. Formalized 6 uncoached tasks (A–F), standardized 1–5 Likert feedback rubric, strict opt-in invariant (`PLAYTEST_STORAGE_KEY`), bounded event capacity (500 max), immediate opt-out memory purge, and zero-PII schema report export pass cleanly.
   - CP15 (P083): Verified deployed-release identity verified via `src/app/version.ts`, `docs/DEPLOYMENT_AND_ROLLBACK.md`, and `tests/version.test.ts`. Build commit SHA/ruleset injection, `dist/deploy-receipt.json` build artifact, client runtime release badge (`title-foot`, `settingsScreen`), and non-destructive forward rollback protocol pass cleanly.
-- **148/148 automated Vitest tests** passing across 16 suites.
+  - CP16 (P084): Safe data-driven content contracts verified via `src/sim/content/schema.ts`, `compiler.ts`, `registry.ts`, `docs/CONTENT_AUTHORING_CONTRACT.md`, and `tests/content_contract.test.ts`. Strict offline validation rejects prototype pollution, script injection, and unknown properties; data-driven scenarios (`highland_sanctuary`, `archipelago_exchange`) instantiate and execute without editing engine code; Phase F1 100% complete.
+- **162/162 automated Vitest tests** passing across 17 suites.
+- **7/7 performance benchmark suites** passing in < 1.0s.
 - **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 

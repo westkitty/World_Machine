@@ -596,6 +596,60 @@
   - `bun run test` passed 148/148 Vitest tests across 16 suites in 4.39s.
   - `bun run build` built production bundle cleanly in 903ms, generating `dist/deploy-receipt.json`.
   - `bun run sim:bench` passed 7/7 benchmark suites in 1.02s.
-  - Checkpoint commit: to be committed.
+  - Checkpoint commit: `74bb9e74928f85a229b22f4c992dbcb798fea150` (pushed to `origin/feat/world-machine-f1`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP16 — P084: Safe data-driven content contracts (Phase F1 completion gate).
+
+---
+
+### Checkpoint CP16 — P084: Safe Data-Driven Content Contracts (Phase F1 Completion Gate)
+
+- **Proposal:** P084 — Safe data-driven content contracts
+- **Phase:** F1 (Proof factory and extensible content backbone) — Milestone Completion Gate
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Prototype then build · L
+- **Prerequisites:** CP15 (P083) completed, `feat/world-machine-f1` active
+- **Implementation Packet:**
+  - Created `src/sim/content/schema.ts`:
+    - Strict, serializable `ScenarioPackage` schema.
+    - Sub-schemas: `meta`, `worldgen`, `rules`, `setup`, `objectives`, `failure`, `risks`.
+    - Allowed open SPDX licenses: `MIT`, `Apache-2.0`, `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `BSD-2-Clause`, `BSD-3-Clause`, `Unlicense`.
+    - Implemented `validateScenarioPackage(raw: unknown)`:
+      - Rejects non-object / null payloads.
+      - Deep recursive prototype pollution audit (`__proto__`, `prototype`, `constructor`).
+      - Deep recursive script injection audit (`<script>`, `javascript:` URIs).
+      - Strict key whitelisting via `checkAllowedKeys` rejecting unexpected properties.
+      - Strict numeric bounds, string length limits, and enum validation.
+  - Created `src/sim/content/compiler.ts`:
+    - `compileDataScenario(pkg: ScenarioPackage, scenarioIndex?: number): ScenarioDef`.
+    - Compiles declarative JSON packages into standard `ScenarioDef` interfaces without executing arbitrary scripts.
+    - Pure objective evaluators: `settlement_founded`, `min_population`, `min_food_reserve_months`, `min_water_reserve_months`, `min_wellbeing`, `min_connected_settlements`, `max_degradation`, `min_biomass`, `trade_delivered`.
+    - Pure failure condition evaluators (expedition deadlines, population collapse, ecological degradation).
+    - Policy constraint checks and risk assessment evaluators.
+    - Challenge mode scaling integration (`CHALLENGE_RULES`).
+  - Created `src/sim/content/registry.ts`:
+    - Custom data-driven scenario registry: `registerDataScenario`, `unregisterDataScenario`, `getRegisteredDataScenario`, `getAllRegisteredDataScenarios`, `clearRegisteredDataScenarios`.
+  - Created `src/sim/content/index.ts`:
+    - Exported schema, compiler, and registry interfaces.
+  - Updated `src/sim/scenarios.ts`:
+    - `getScenario(id)`: seamlessly checks canonical `SCENARIOS` first, then registered data scenarios.
+    - Exported `getAllScenarios(): ScenarioDef[]`.
+  - Created pure JSON scenario fixtures:
+    - `src/sim/content/fixtures/highland_sanctuary.json`: mountain basin expedition scenario focused on biomass conservation.
+    - `src/sim/content/fixtures/archipelago_exchange.json`: 3-island maritime community trade connection scenario.
+  - Authored documentation:
+    - `docs/CONTENT_AUTHORING_CONTRACT.md`: defines schema, security invariants, licensing rules, contributor boundaries, and runtime registration protocol.
+  - Created comprehensive test suite `tests/content_contract.test.ts` (14 tests):
+    - Fixture schema validation.
+    - Offline rejection of prototype pollution, script injection, unknown fields, invalid IDs, unapproved licenses, and invalid numeric values.
+    - Dynamic compilation and content registry lifecycle.
+    - Engine independence proof: second scenario (`archipelago_exchange`) added purely as validated data without editing engine code; executes ticks, tracks objectives, enforces policy constraints, scales challenge multipliers, and triggers failure conditions.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 162/162 Vitest tests across 17 suites in 3.11s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 895ms.
+  - `bun run build` built production bundle cleanly in 855ms.
+  - `bun run test:e2e` passed 14/14 Playwright real-browser journeys across Desktop Chrome and Pixel 7 mobile touch.
+  - Phase F1 is 100% complete!
+- **Next Task:** Checkpoint CP17 — Transition to Phase F2 (Core Simulation Engine).
+
 

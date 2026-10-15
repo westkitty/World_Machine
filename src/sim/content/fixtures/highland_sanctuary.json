@@ -1,0 +1,97 @@
+{
+  "meta": {
+    "id": "highland_sanctuary",
+    "title": "Highland Sanctuary",
+    "tagline": "Establish a mountain community while preserving alpine biomass.",
+    "brief": "Lead an expedition into a highland basin. Establish a secure settlement, build sustainable water and food reserves, and maintain high ecological biomass across your territory.",
+    "author": "Antigravity Stewardship Collective",
+    "license": "CC-BY-4.0",
+    "version": 1,
+    "schemaVersion": 1
+  },
+  "worldgen": {
+    "seed": "HIGHLAND-SANCTUARY-1",
+    "oceanCoverage": 0.45,
+    "rainfallMult": 1.2,
+    "tempShift": -2.5
+  },
+  "rules": {
+    "deadline": 120,
+    "holdMonths": 12,
+    "constraints": [
+      "Found the settlement within 12 months",
+      "Maintain ecological biomass above 50%",
+      "Hold positive food and water reserves for 12 consecutive months"
+    ],
+    "policyConstraints": {
+      "allowedAutonomy": ["none", "limited"],
+      "rationale": "Highland Sanctuary requires close stewardship to prevent ecological degradation."
+    }
+  },
+  "setup": {
+    "mode": "expedition",
+    "expedition": {
+      "population": 750,
+      "inventory": {
+        "food": 4000,
+        "water": 2000,
+        "timber": 2500,
+        "ore": 800
+      },
+      "foundingDeadlineMonths": 12
+    },
+    "initialPolicy": {
+      "autonomy": "limited",
+      "rationing": false
+    }
+  },
+  "objectives": [
+    {
+      "id": "found_settlement",
+      "label": "Found Highland Settlement",
+      "type": "settlement_founded"
+    },
+    {
+      "id": "population_target",
+      "label": "Population",
+      "type": "min_population",
+      "target": 800
+    },
+    {
+      "id": "food_reserves",
+      "label": "Food Reserves",
+      "type": "min_food_reserve_months",
+      "targetMonths": 3
+    },
+    {
+      "id": "water_reserves",
+      "label": "Water Reserves",
+      "type": "min_water_reserve_months",
+      "targetMonths": 2
+    },
+    {
+      "id": "biomass_preservation",
+      "label": "Territory Biomass",
+      "type": "min_biomass",
+      "targetRatio": 0.4
+    }
+  ],
+  "failure": {
+    "expeditionDeadlineMonths": 12,
+    "requireLivingSettlements": true,
+    "minTotalPopulation": 100,
+    "maxTerritoryDegradation": 0.65,
+    "customMessages": {
+      "expeditionFailed": "The mountain expedition failed to establish a settlement before winter set in.",
+      "allDied": "The highland sanctuary collapsed.",
+      "depopulated": "The population fell below sustainable numbers.",
+      "ecologicalCollapse": "Severe erosion and environmental degradation rendered the sanctuary uninhabitable."
+    }
+  },
+  "risks": {
+    "trackExpeditionDeadline": true,
+    "trackShortages": true,
+    "trackFoodReserveMonths": 2,
+    "trackWaterReserveMonths": 1.5
+  }
+}

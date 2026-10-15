@@ -402,8 +402,14 @@ export const SCENARIOS: ScenarioDef[] = [
   },
 ];
 
+import { getAllRegisteredDataScenarios, getRegisteredDataScenario } from './content/registry';
+
 export function getScenario(id: string): ScenarioDef | undefined {
-  return SCENARIOS.find((s) => s.id === id);
+  return SCENARIOS.find((s) => s.id === id) ?? getRegisteredDataScenario(id);
+}
+
+export function getAllScenarios(): ScenarioDef[] {
+  return [...SCENARIOS, ...getAllRegisteredDataScenarios()];
 }
 
 /**
