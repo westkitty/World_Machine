@@ -52,9 +52,10 @@ bun run build
   - CP16 (P084): Safe data-driven content contracts verified via `src/sim/content/schema.ts`, `compiler.ts`, `registry.ts`, `docs/CONTENT_AUTHORING_CONTRACT.md`, and `tests/content_contract.test.ts`. Strict offline validation rejects prototype pollution, script injection, and unknown properties; data-driven scenarios (`highland_sanctuary`, `archipelago_exchange`) instantiate and execute without editing engine code; Phase F1 100% complete.
 - **Phase F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery) In Progress (CP17–CP23)**:
   - CP17 (P005): Stop unnecessary renderer rebuilding verified via `src/render/PlanetView.ts`, `tests/render_diff.test.ts`, and Playwright E2E `Journey 8`. Diffed `ViewOptions` and seeds prevent redundant cloud canvas fBm generation, star particle mesh regeneration, and canvas resize on nonvisual or identical quality settings.
-- **168/168 automated Vitest tests** passing across 18 suites.
+  - CP18 (P006): Nonblocking strategy comparison verified via `src/sim/forecast.worker.ts`, `src/sim/forecast_service.ts`, `tests/forecast_worker.test.ts`, and Playwright E2E `Journey 9`. Offloads clone and simulation stepping to a background Web Worker with live progress telemetry, in-flight cancellation, origin fingerprint validation, and automatic staleness discard when the world clock advances or state mutates.
+- **174/174 automated Vitest tests** passing across 19 suites.
 - **7/7 performance benchmark suites** passing in < 1.4s.
-- **16/16 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
+- **18/18 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
 ## Unverified / known gaps
@@ -69,5 +70,5 @@ GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at http
 
 ## Safest next step
 
-Proceed with **Checkpoint CP18 (P006: Nonblocking strategy comparison)**: move clone and forecast processing to a Web Worker with cancellation, progress updates, origin/fingerprint validation, and deterministic message protocol matching main-engine output.
+Proceed with **Checkpoint CP19 (P077: WebGL context-loss recovery)**: recreate GPU resources on context restoration, suspend invalid draws during loss, and restore camera/selection state without resource duplication.
 

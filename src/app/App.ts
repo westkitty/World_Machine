@@ -11,6 +11,7 @@ import { createScenarioWorld } from '../sim/scenarios';
 import { foundingBlocker, getSettlement } from '../sim/settlements';
 import { planRoute } from '../sim/systems/trade';
 import { validateBranchAdoption, type BranchResult } from '../sim/compare';
+import { ForecastService } from '../sim/forecast_service';
 import { invalidateForecast } from '../ui/panels';
 import type { BuildingType, GameMode, GenParams, WorldState } from '../sim/types';
 import { PlanetView } from '../render/PlanetView';
@@ -58,6 +59,7 @@ export class App {
   readonly hud: Hud;
   readonly clock = new SimClock();
   readonly audio = new AudioEngine();
+  readonly forecast = new ForecastService();
   readonly playtest: PlaytestTracker = getPlaytestTracker();
   settings: Settings = loadSettings();
   tool: Tool = { kind: 'inspect' };
@@ -81,6 +83,9 @@ export class App {
       if (!lost) this.view.syncWorld(this.state, true);
     };
     this.hud = new Hud(this);
+    this.forecast.subscribe(() => {
+      this.hud?.refresh(true);
+    });
     this.bindInput(stage);
     this.newGame({ mode: 'sandbox' }, false);
     this.clock.setSpeed(0);
@@ -107,6 +112,7 @@ export class App {
   load(state: WorldState): void {
     assertStateValid(state);
     invalidateForecast();
+    this.forecast.invalidate();
     this.state = state;
     this.playtest.logEvent('load_game', 'save', `Tick ${state.tick}`, state.tick);
     this.clock.reset();
@@ -255,6 +261,7 @@ export class App {
       }
     }
     this.pendingPaint = true;
+    this.forecast.checkStaleness(this.state);
     this.hud.refresh();
   }
 
@@ -267,6 +274,7 @@ export class App {
     if (cell >= 0) this.view.fx(!r.ok ? 'invalid' : cmd.type === 'found' ? 'founded' : cmd.type === 'conserve' ? 'reserve' : cmd.type === 'route' ? 'agreement' : 'construction', cell);
     this.hud.toast(r.message, r.ok ? 'good' : 'bad');
     if (r.ok) {
+      this.forecast.checkStaleness(this.state);
       this.playtest.logEvent(`cmd:${cmd.type}`, 'stewardship', r.message, this.state.tick);
       this.view.syncTick(this.state);
       this.hud.refresh(true);
@@ -487,4 +495,8 @@ export class App {
     this.audio.update(dt, !this.clock.paused);
     requestAnimationFrame(this.loop);
   };
+
+  destroy(): void {
+    this.forecast.destroy();
+  }
 }

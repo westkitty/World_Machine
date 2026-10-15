@@ -44,6 +44,7 @@ function deployReceiptPlugin(): Plugin {
 export default defineConfig({
   base: './',
   build: { target: 'es2022', chunkSizeWarningLimit: 900 },
+  worker: { format: 'es' },
   define: {
     __BUILD_COMMIT_SHA__: JSON.stringify(commitSha),
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),

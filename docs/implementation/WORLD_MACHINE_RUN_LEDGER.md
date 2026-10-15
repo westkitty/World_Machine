@@ -699,5 +699,64 @@
   - `bun run test:e2e` passed all 16/16 Playwright real-browser journeys across Desktop Chrome and Pixel 7 mobile touch emulation.
 - **Next Task:** Checkpoint CP18 — P006: Nonblocking strategy comparison.
 
+---
+
+### Checkpoint CP18 — P006: Nonblocking Strategy Comparison
+
+- **Proposal:** P006 — Nonblocking strategy comparison
+- **Phase:** F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · L
+- **Prerequisites:** P001, P072 completed, `feat/world-machine-f2` active
+- **Implementation Packet:**
+  - Created `src/sim/forecast_protocol.ts`:
+    - Defined strongly-typed inbound (`start`, `cancel`) and outbound (`progress`, `result`, `cancelled`, `error`) message structures.
+    - Included `id`, `originSeed`, `originTick`, `originFingerprint`, `base: WorldState`, `policyA`, `policyB`, `ticks`, and `ForecastProgressData`.
+  - Created `src/sim/forecast.worker.ts`:
+    - Web Worker implementation offloading clone and forecast simulation processing from the main UI thread.
+    - Integrates early abort tokens with `runBranch` tick stepping.
+    - Dispatches granular progress updates (`ticksDone`, `totalTicks`, `pct`, `branch: 'A' | 'B'`).
+    - Handled cancellation and error boundaries.
+  - Enhanced `src/sim/compare.ts`:
+    - Added overloaded `runBranch` supporting optional `onProgress?: (ticksDone: number, totalTicks: number) => boolean` callback for early cancellation without duplicating simulation logic.
+    - Preserved 100% backwards-compatible return signature for callers without progress callback.
+  - Created `src/sim/forecast_service.ts`:
+    - Client manager for Web Worker lifecycle (`new Worker(new URL('./forecast.worker.ts', import.meta.url), { type: 'module' })`).
+    - Implemented transparent asynchronous fallback for headless / Node test environments without DOM Worker support.
+    - Enforced request ID tracking to safely ignore stale or obsolete worker messages.
+    - Enforced strict origin fingerprint checks: `checkStaleness(currentState)` invalidates in-flight and completed forecasts if the active world advances its clock or mutates state.
+  - Updated `src/app/App.ts`:
+    - Added `readonly forecast = new ForecastService()`.
+    - Integrated automatic staleness detection on simulation ticks (`runTicks`) and command execution (`run`).
+    - Subscribed HUD to forecast state transitions.
+    - Added `destroy()` lifecycle teardown.
+  - Updated `src/ui/panels.ts`:
+    - Updated `comparePanel` to consume `app.forecast`.
+    - Rendered real-time progress bar (`.forecast-progress`, `.forecast-bar`, `.forecast-fill`) and percentage when simulation is in flight.
+    - Replaced run button with active "Cancel comparison" button during worker execution.
+    - Added clear visual stale state indicators when the world advances, preserving fork semantics callout and disabling illegal branch adoption.
+  - Updated `src/styles.css`:
+    - Added `.forecast-progress`, `.forecast-bar`, and `.forecast-fill` styling consistent with instrument readout theme.
+  - Configured `vite.config.ts`:
+    - Added `worker: { format: 'es' }` configuration. Verified that `dist/assets/forecast.worker-*.js` (80.83 kB) is cleanly generated.
+  - Created unit test suite `tests/forecast_worker.test.ts` (6 tests):
+    - `deterministic match`: Verified that worker output matches main-engine `compareStrategies` output for identical seed/tick/policies/horizon.
+    - `progress reporting`: Verified incremental percentage and branch progression.
+    - `cancellation`: Verified immediate cancellation resets state and discards in-flight computation.
+    - `staleness detection`: Verified clock advances and policy mutations trigger stale state and reject branch adoption.
+    - `stale request ID discard`: Verified messages from previous requests are ignored.
+    - `10-year horizon`: Verified clean 120-month forecast execution with full fork semantics.
+  - Updated `tests/e2e/journeys.spec.ts`:
+    - Added `Journey 9: Nonblocking strategy comparison with Web Worker, progress, cancellation, and stale discard (P006)`.
+    - Verified 10-year forecast nonblocking UI responsiveness, worker completion, fork semantics presentation, in-flight cancellation, and clock advance staleness discard across Desktop Chromium and Pixel 7 mobile touch emulation.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 174/174 Vitest tests across 19 suites in 3.74s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.38s.
+  - `bun run build` built production bundle with Web Worker chunk in 1.02s.
+  - `bun run test:e2e` passed all 18/18 Playwright real-browser journeys across Desktop Chromium and Pixel 7 mobile touch emulation.
+- **Next Task:** Checkpoint CP19 — P077: WebGL context-loss recovery.
+
+
 
 

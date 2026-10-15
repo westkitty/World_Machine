@@ -400,6 +400,11 @@ label.btn input[type='file'] { display: none; }
 .month-fill { height: 100%; width: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, rgba(217, 181, 106, 0.4), var(--brass-hi)); }
 .month-bar.running .month-fill { box-shadow: 0 0 8px rgba(255, 227, 160, 0.7); }
 
+/* Strategy comparison forecast progress bar */
+.forecast-progress { margin: 8px 0; padding: 6px 8px; background: rgba(9, 14, 26, 0.6); border: 1px solid rgba(217, 181, 106, 0.2); border-radius: 4px; }
+.forecast-bar { height: 5px; border-radius: 2px; background: rgba(217, 181, 106, 0.15); overflow: hidden; }
+.forecast-fill { height: 100%; background: linear-gradient(90deg, var(--brass), var(--brass-hi)); transition: width 0.15s ease-out; }
+
 /* Settlement labels: compact chips with a status dot (text glyph kept for accessibility). */
 .label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; font-weight: 500; letter-spacing: 0.01em;
   background: linear-gradient(180deg, rgba(10, 15, 27, 0.82), rgba(6, 9, 18, 0.82)); border-color: rgba(217, 181, 106, 0.28);

@@ -133,7 +133,26 @@ export function validateBranchAdoption(activeState: WorldState, branch: BranchRe
   return { canAdopt: true };
 }
 
-export function runBranch(base: WorldState, label: string, policy: Partial<Policy>, ticks: number): BranchResult {
+export function runBranch(
+  base: WorldState,
+  label: string,
+  policy: Partial<Policy>,
+  ticks: number,
+): BranchResult;
+export function runBranch(
+  base: WorldState,
+  label: string,
+  policy: Partial<Policy>,
+  ticks: number,
+  onProgress: (ticksDone: number, totalTicks: number) => boolean,
+): BranchResult | null;
+export function runBranch(
+  base: WorldState,
+  label: string,
+  policy: Partial<Policy>,
+  ticks: number,
+  onProgress?: (ticksDone: number, totalTicks: number) => boolean,
+): BranchResult | null {
   const originSeed = base.seed;
   const originTick = base.tick;
   const originFingerprint = computeStateFingerprint(base);
@@ -150,6 +169,9 @@ export function runBranch(base: WorldState, label: string, policy: Partial<Polic
     step(state);
     delivered += state.routes.reduce((a, r) => a + r.movedLastTick, 0);
     series.push(computeMetrics(state).population);
+    if (onProgress && !onProgress(i + 1, ticks)) {
+      return null;
+    }
   }
   const m = computeMetrics(state);
   const fork: ForkSemantics = {
@@ -188,6 +210,21 @@ export function runBranch(base: WorldState, label: string, policy: Partial<Polic
   };
 }
 
-export function compareStrategies(base: WorldState, a: Partial<Policy>, b: Partial<Policy>, ticks: number): [BranchResult, BranchResult] {
-  return [runBranch(base, 'Strategy A', a, ticks), runBranch(base, 'Strategy B', b, ticks)];
+export function compareStrategies(
+  base: WorldState,
+  a: Partial<Policy>,
+  b: Partial<Policy>,
+  ticks: number,
+  onProgress?: (branch: 'A' | 'B', ticksDone: number, totalTicks: number) => boolean,
+): [BranchResult, BranchResult] {
+  const resA = onProgress
+    ? runBranch(base, 'Strategy A', a, ticks, (done, tot) => onProgress('A', done, tot))
+    : runBranch(base, 'Strategy A', a, ticks);
+  if (!resA) throw new Error('Strategy comparison branch A aborted');
+  const resB = onProgress
+    ? runBranch(base, 'Strategy B', b, ticks, (done, tot) => onProgress('B', done, tot))
+    : runBranch(base, 'Strategy B', b, ticks);
+  if (!resB) throw new Error('Strategy comparison branch B aborted');
+  return [resA, resB];
 }
+

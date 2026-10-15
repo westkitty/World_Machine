@@ -1,6 +1,6 @@
 import type { App } from '../app/App';
 import { BUILDINGS, GOOD_LABEL, TECHS } from '../sim/constants';
-import { compareStrategies, validateBranchAdoption, type BranchResult } from '../sim/compare';
+import { validateBranchAdoption, type BranchResult } from '../sim/compare';
 import { formatCost, scaledCost, storageCap, totalInventory, inTransit } from '../sim/economy';
 import { settlementSuitability } from '../sim/formulas';
 import { monthlyNeeds, reserveTarget } from '../sim/needs';
@@ -392,11 +392,9 @@ export function historyPanel(app: App): HTMLElement {
 
 // ------------------------------------------------------------------ Compare
 
-let compareResult: [BranchResult, BranchResult] | null = null;
-let compareTick = -1;
-
 export function comparePanel(app: App): HTMLElement {
   const s = app.state;
+  const fState = app.forecast.getState();
   const form = (prefix: string, defaults: Partial<Policy>) => {
     const ext = h('select', { name: `${prefix}-ext`, 'aria-label': `${prefix} extraction` }, ...['restrained', 'normal', 'intensive'].map((v) => h('option', { value: v, selected: defaults.extraction === v }, v)));
     const growth = h('select', { name: `${prefix}-growth`, 'aria-label': `${prefix} growth` }, ...['restrain', 'neutral', 'encourage'].map((v) => h('option', { value: v, selected: defaults.growth === v }, v)));
@@ -412,30 +410,62 @@ export function comparePanel(app: App): HTMLElement {
   };
   const a = form('A', { ...s.policy, extraction: 'restrained' });
   const b = form('B', { ...s.policy, extraction: 'intensive', growth: 'encourage' });
-  const years = h('select', { 'aria-label': 'Years to simulate' }, ...[1, 3, 5, 10].map((y) => h('option', { value: y, selected: y === 3 }, `${y} year${y > 1 ? 's' : ''}`))) as HTMLSelectElement;
+  const isRunning = fState.status === 'running';
+  const years = h('select', { 'aria-label': 'Years to simulate', disabled: isRunning }, ...[1, 3, 5, 10].map((y) => h('option', { value: y, selected: y === 3 }, `${y} year${y > 1 ? 's' : ''}`))) as HTMLSelectElement;
   const isEnded = s.scenario && s.scenario.status !== 'active';
-  const status = h('p.muted', isEnded ? 'Scenario has ended. Strategy comparison is inactive.' : compareResult && compareTick === s.tick ? 'Results are for the current month.' : compareResult ? `Results were computed from ${formatDate(compareTick)}.` : 'Both futures run with the real engine from an exact copy of this world.');
+
+  let statusText = 'Both futures run with the real engine in a Web Worker from an exact copy of this world.';
+  let isWarn = false;
+  if (isEnded) {
+    statusText = 'Scenario has ended. Strategy comparison is inactive.';
+  } else if (isRunning) {
+    statusText = fState.progress
+      ? `Simulating futures… ${fState.progress.pct}% (Branch ${fState.progress.branch}, month ${fState.progress.ticksDone}/${fState.progress.totalTicks})`
+      : 'Simulating both futures in Web Worker…';
+  } else if (fState.status === 'stale') {
+    statusText = 'The active world has advanced or changed since this comparison was computed. Run a fresh comparison.';
+    isWarn = true;
+  } else if (fState.status === 'complete' && fState.result) {
+    statusText = fState.originTick === s.tick ? 'Results are for the current month.' : `Results were computed from ${formatDate(fState.originTick)}.`;
+  } else if (fState.status === 'error') {
+    statusText = `Simulation failed: ${fState.error || 'unknown error'}`;
+    isWarn = true;
+  }
+
+  const status = h('p.muted' + (isWarn ? '.warnline' : ''), statusText);
+
+  let progressEl: HTMLElement | null = null;
+  if (isRunning && fState.progress) {
+    progressEl = h('div.forecast-progress',
+      h('div.forecast-bar', h('div.forecast-fill', { style: { width: `${fState.progress.pct}%` } })),
+    );
+  }
+
   const run = () => {
     if (isEnded) return;
-    status.textContent = 'Simulating both futures…';
-    setTimeout(() => {
-      compareResult = compareStrategies(s, a.read(), b.read(), Number(years.value) * 12);
-      compareTick = s.tick;
-      app.hud.refresh(true);
-    }, 30);
+    app.forecast.start(s, a.read(), b.read(), Number(years.value) * 12);
   };
+
+  const cancel = () => {
+    app.forecast.cancel();
+  };
+
+  const actionBtn = isRunning
+    ? button('Cancel comparison', cancel, { kind: 'bad' })
+    : button('Run comparison', run, { disabled: isEnded ? 'Scenario has ended' : false });
+
   return h('div.panel-body',
     h('header.panel-head', h('div.eyebrow', 'Strategy comparison'), h('h2', 'Fork the future'), h('p.sub', 'Same world, same random seed, different policies. Differences come from the policies alone.')),
     h('div.branches', a.el, b.el),
-    h('div.inline', years, button('Run comparison', run, { disabled: isEnded ? 'Scenario has ended' : false })),
+    h('div.inline', years, actionBtn),
+    progressEl,
     status,
-    compareResult ? compareTable(app, compareResult) : null,
+    fState.result ? compareTable(app, fState.result) : null,
   );
 }
 
 export function invalidateForecast(): void {
-  compareResult = null;
-  compareTick = -1;
+  // Retained for backwards compatibility
 }
 
 function compareTable(app: App, [A, B]: [BranchResult, BranchResult]): HTMLElement {
@@ -452,6 +482,7 @@ function compareTable(app: App, [A, B]: [BranchResult, BranchResult]): HTMLEleme
   const better = (a: number, b: number, up: boolean) => (Math.abs(a - b) < 1e-9 ? '' : (a > b) === up ? 'pos' : 'neg');
   const adopt = (r: BranchResult) => {
     if (app.adoptBranch(r)) {
+      app.forecast.invalidate();
       invalidateForecast();
     }
   };

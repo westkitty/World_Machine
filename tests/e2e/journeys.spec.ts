@@ -265,4 +265,61 @@ test.describe('The World Machine — Automated Browser Journeys (P007)', () => {
     expect(afterHighStats.skyBuilds).toBe(baselineStats.skyBuilds + 1);
     expect(afterHighStats.planetMeshBuilds).toBe(baselineStats.planetMeshBuilds + 1);
   });
+
+  test('Journey 9: Nonblocking strategy comparison with Web Worker, progress, cancellation, and stale discard (P006)', async ({ page }) => {
+    test.setTimeout(60000);
+    await page.keyboard.press('Escape');
+
+    // 1. Ensure drawer is open, then open Compare tab
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.hud.setDrawer(true);
+    });
+
+    await page.locator('button.tab[title="Compare"]').click();
+    await expect(page.locator('h2:has-text("Fork the future")')).toBeVisible();
+
+    // 2. Select 10 years horizon and run comparison
+    await page.locator('select[aria-label="Years to simulate"]').selectOption('10');
+    const runBtn = page.locator('button:has-text("Run comparison")');
+    await runBtn.click();
+
+    // 3. Table and fork semantics appear upon worker completion
+    await expect(page.locator('.callout:has-text("Fork semantics")')).toBeVisible({ timeout: 25000 });
+    await expect(page.locator('table.data')).toBeVisible();
+
+    // Adoption buttons initially enabled for the matching world tick
+    const adoptA = page.locator('button:has-text("Adopt A")');
+    await expect(adoptA).toBeEnabled();
+
+    // 4. Test cancellation and state reset
+    const cancelWorked = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.forecast.start(app.state, { extraction: 'restrained' }, { extraction: 'intensive' }, 120);
+      const wasRunning = app.forecast.getState().status === 'running';
+      app.forecast.cancel();
+      const isIdle = app.forecast.getState().status === 'idle';
+      app.hud.refresh(true);
+      return wasRunning && isIdle;
+    });
+    expect(cancelWorked).toBe(true);
+    await expect(runBtn).toBeVisible();
+
+    // 5. Re-run comparison to test staleness
+    await runBtn.click();
+    await expect(page.locator('.callout:has-text("Fork semantics")')).toBeVisible({ timeout: 25000 });
+    await expect(adoptA).toBeEnabled();
+
+    // 6. Advance the world clock by stepping: forecast must become stale and adoption must disable
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.stepOnce();
+      app.hud.refresh(true);
+    });
+
+    // Stale message appears in compare panel and adoption is disabled
+    await expect(page.locator('text=The active world has advanced or changed')).toBeVisible({ timeout: 5000 });
+    await expect(adoptA).toBeDisabled();
+  });
 });
+
