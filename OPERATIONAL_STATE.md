@@ -30,16 +30,19 @@ bun run test
 bun run build
 ```
 
-## Verified (with evidence in docs/VALIDATION.md)
+## Verified (with evidence in docs/VALIDATION.md and docs/implementation/WORLD_MACHINE_RUN_LEDGER.md)
 
-- 54/54 Vitest tests: topology, generation, accounting conservation, no NaN/negatives over
-  600 ticks, population response, trade transfers and costs, construction validation,
-  degradation effects, pause/step/frame-rate independence, determinism, save/load continuity
-  and corruption handling, mode behaviour, previews, research, crisis responses, comparison,
-  scenario evaluation, bounded long runs, and success + failure for all 5 scenarios × 2
-  variants.
-- Type check and production build pass; build runs from a `/World_Machine/` subpath.
-- Manual browser checks of the main journeys on desktop and phone-sized emulation.
+- **Phase F0 (Foundation) Complete (CP01–CP08)**:
+  - CP01 (P061): Geographic scale contract ($R=6,371\text{ km}$, 642 cells, classified topologies, named units).
+  - CP02 (P062): Meaningful-intervention design audit (all 12 actions inventoried, non-redundant, alternative pathways).
+  - CP03 (P071): Single authoritative mutation path (transactional commands, zero UI direct writes, invalid commands leave state byte-identical).
+  - CP04 (P082): Versioned save compatibility (v1 migration fixtures validated, strict nested schema checks).
+  - CP05 (P002): Save overwrite/delete protection (atomic rollback, displacement backups, recovery UI).
+  - CP06 (P003): Scenario constraints authoritative (command-boundary policy enforcement, locked terminal scenarios).
+  - CP07 (P001): Forecast ownership and adoption integrity (FNV-1a state fingerprinting, fork semantics, anti-transplantation/anti-rewind checks).
+  - CP08 (P004): Modal/time/keyboard coherence (accumulator preservation across pause/resume, modal focus trapping/return, focused button suppression).
+- **117/117 automated Vitest tests** passing across 10 suites (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`, `tests/scenario_constraints.test.ts`, `tests/forecast_integrity.test.ts`, `tests/modal_time_keyboard.test.ts`).
+- Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
 ## Unverified / known gaps
 
@@ -48,13 +51,9 @@ file-dialog export/import, WebGL context restore, Firefox/Safari, automated brow
 
 ## Repository
 
-`origin` = `github.com/westkitty/World_Machine`; default branch `main` (also
-`feat/initial-world-machine`). GitHub Pages deploys from `main` via
-`.github/workflows/pages.yml` (tests must pass first). Live at
-https://westkitty.github.io/World_Machine/.
+`origin` = `github.com/westkitty/World_Machine`; active branch `feat/world-machine-f0` (tracking `origin/feat/world-machine-f0`).
+GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at https://westkitty.github.io/World_Machine/.
 
 ## Safest next step
 
-Add a Playwright suite covering the critical journeys (mode start, found/build/route by
-clicking, save → load, touch on a mobile profile) and sample frame rates with the browser
-visible; then tune quality presets from the measurements.
+Begin **Phase F1 — Proof factory and extensible content backbone**, starting with **Checkpoint CP09 (P007: Automated real-browser journeys)**: set up Playwright smoke journeys covering new game, actions, modal input, save/load, and touch emulation.
