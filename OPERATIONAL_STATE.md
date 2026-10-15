@@ -50,9 +50,11 @@ bun run build
   - CP14 (P075): Human playtest program protocol verified via `docs/HUMAN_PLAYTEST_PROGRAM.md`, `src/app/playtest.ts`, and `tests/playtest.test.ts`. Formalized 6 uncoached tasks (A–F), standardized 1–5 Likert feedback rubric, strict opt-in invariant (`PLAYTEST_STORAGE_KEY`), bounded event capacity (500 max), immediate opt-out memory purge, and zero-PII schema report export pass cleanly.
   - CP15 (P083): Verified deployed-release identity verified via `src/app/version.ts`, `docs/DEPLOYMENT_AND_ROLLBACK.md`, and `tests/version.test.ts`. Build commit SHA/ruleset injection, `dist/deploy-receipt.json` build artifact, client runtime release badge (`title-foot`, `settingsScreen`), and non-destructive forward rollback protocol pass cleanly.
   - CP16 (P084): Safe data-driven content contracts verified via `src/sim/content/schema.ts`, `compiler.ts`, `registry.ts`, `docs/CONTENT_AUTHORING_CONTRACT.md`, and `tests/content_contract.test.ts`. Strict offline validation rejects prototype pollution, script injection, and unknown properties; data-driven scenarios (`highland_sanctuary`, `archipelago_exchange`) instantiate and execute without editing engine code; Phase F1 100% complete.
-- **162/162 automated Vitest tests** passing across 17 suites.
-- **7/7 performance benchmark suites** passing in < 1.0s.
-- **14/14 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
+- **Phase F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery) In Progress (CP17–CP23)**:
+  - CP17 (P005): Stop unnecessary renderer rebuilding verified via `src/render/PlanetView.ts`, `tests/render_diff.test.ts`, and Playwright E2E `Journey 8`. Diffed `ViewOptions` and seeds prevent redundant cloud canvas fBm generation, star particle mesh regeneration, and canvas resize on nonvisual or identical quality settings.
+- **168/168 automated Vitest tests** passing across 18 suites.
+- **7/7 performance benchmark suites** passing in < 1.4s.
+- **16/16 automated Playwright E2E browser tests** passing across 2 projects (`chromium` and `mobile-touch`).
 - Typecheck (`bun run typecheck`) and production build (`bun run build`) pass cleanly with 0 errors.
 
 ## Unverified / known gaps
@@ -62,9 +64,10 @@ file-dialog export/import, WebGL context restore, Firefox/Safari.
 
 ## Repository
 
-`origin` = `github.com/westkitty/World_Machine`; active branch `feat/world-machine-f1` (tracking `origin/feat/world-machine-f1`).
+`origin` = `github.com/westkitty/World_Machine`; active branch `feat/world-machine-f2` (tracking `origin/feat/world-machine-f2`).
 GitHub Pages deploys from `main` via `.github/workflows/pages.yml`. Live at https://westkitty.github.io/World_Machine/.
 
 ## Safest next step
 
-Proceed with **Checkpoint CP16 (P084: Safe data-driven content contracts)**: define schema-validated content for scenarios/objectives/starting states; forbid executable data; verify second scenario added purely as validated data without engine edits (Phase F1 milestone completion gate).
+Proceed with **Checkpoint CP18 (P006: Nonblocking strategy comparison)**: move clone and forecast processing to a Web Worker with cancellation, progress updates, origin/fingerprint validation, and deterministic message protocol matching main-engine output.
+

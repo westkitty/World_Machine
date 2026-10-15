@@ -206,4 +206,63 @@ test.describe('The World Machine — Automated Browser Journeys (P007)', () => {
     await inspectBtn.click();
     await expect(inspectBtn).toHaveClass(/active/);
   });
+
+  test('Journey 8: Unnecessary renderer rebuilding prevention (P005)', async ({ page }) => {
+    await page.keyboard.press('Escape');
+
+    // Baseline to medium quality to establish known reference
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.updateSettings({ quality: 'medium', reducedEffects: false, reducedMotion: false });
+    });
+
+    const baselineStats = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return { ...app.view.rebuildStats };
+    });
+    expect(baselineStats.cloudBuilds).toBeGreaterThanOrEqual(1);
+    expect(baselineStats.skyBuilds).toBeGreaterThanOrEqual(1);
+
+    // 1. Mutate a nonvisual setting (showBorders)
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.updateSettings({ showBorders: false });
+    });
+
+    const afterNonvisualStats = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return { ...app.view.rebuildStats };
+    });
+    expect(afterNonvisualStats.cloudBuilds).toBe(baselineStats.cloudBuilds);
+    expect(afterNonvisualStats.skyBuilds).toBe(baselineStats.skyBuilds);
+    expect(afterNonvisualStats.planetMeshBuilds).toBe(baselineStats.planetMeshBuilds);
+
+    // 2. Toggle reduced motion (twinkle-only uniform update without rebuilding sky/clouds)
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.updateSettings({ reducedMotion: true });
+    });
+
+    const afterMotionStats = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return { ...app.view.rebuildStats };
+    });
+    expect(afterMotionStats.cloudBuilds).toBe(baselineStats.cloudBuilds);
+    expect(afterMotionStats.skyBuilds).toBe(baselineStats.skyBuilds);
+    expect(afterMotionStats.planetMeshBuilds).toBe(baselineStats.planetMeshBuilds);
+
+    // 3. Elevate quality from medium to high (rebuilds clouds at 1024, stars at 3200, mesh at level 6)
+    await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      app.updateSettings({ quality: 'high' });
+    });
+
+    const afterHighStats = await page.evaluate(() => {
+      const app = (window as any).worldMachine;
+      return { ...app.view.rebuildStats };
+    });
+    expect(afterHighStats.cloudBuilds).toBe(baselineStats.cloudBuilds + 1);
+    expect(afterHighStats.skyBuilds).toBe(baselineStats.skyBuilds + 1);
+    expect(afterHighStats.planetMeshBuilds).toBe(baselineStats.planetMeshBuilds + 1);
+  });
 });

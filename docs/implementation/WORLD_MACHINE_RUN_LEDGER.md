@@ -650,6 +650,54 @@
   - `bun run build` built production bundle cleanly in 855ms.
   - `bun run test:e2e` passed 14/14 Playwright real-browser journeys across Desktop Chrome and Pixel 7 mobile touch.
   - Phase F1 is 100% complete!
-- **Next Task:** Checkpoint CP17 — Transition to Phase F2 (Core Simulation Engine).
+- **Next Task:** Checkpoint CP17 — Transition to Phase F2 (P005: Stop unnecessary renderer rebuilding).
+
+---
+
+### Checkpoint CP17 — P005: Stop Unnecessary Renderer Rebuilding
+
+- **Proposal:** P005 — Stop unnecessary renderer rebuilding
+- **Phase:** F2 (Runtime, Graphics Lifecycle, and Safe Offline Delivery)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Repair · M
+- **Prerequisites:** P008 completed, `feat/world-machine-f2` active
+- **Implementation Packet:**
+  - Analyzed `src/render/PlanetView.ts`: identified that calls to `setOptions` previously unconditionally rebuilt the cloud layer (`buildClouds` with full CPU fBm canvas evaluation and 32,000-face icosahedron geometry allocation) and invoked `applyQuality` which unconditionally recreated the star field particle mesh (`buildSky`), updated DPR, and triggered resize even for nonvisual options updates (e.g. `showBorders`, audio settings, or `reducedMotion`).
+  - Created `diffViewOptions`:
+    - Compares previous vs incoming `ViewOptions`, world state seeds, and target device pixel ratios.
+    - Yields granular rebuild booleans: `rebuildPlanetMesh`, `rebuildClouds`, `rebuildSky`, `dprChanged`, `updateTwinkleOnly`.
+    - Distinguishes quality level transitions (e.g. low to high) from nonvisual toggles.
+  - Added cache signatures and lifecycle counters to `PlanetView`:
+    - `rebuildStats`: `{ cloudBuilds, skyBuilds, planetMeshBuilds, setOptionsCalls }`.
+    - `cloudSignature`: `${seed}:${resolution}`.
+    - `skySignature`: `${skyEnabled ? 1 : 0}:${starCount}`.
+    - `currentDpr`: Tracks active pixel ratio to avoid redundant canvas resizes.
+    - `lastStateSeed`: Tracks world seed across option updates.
+  - Refactored `setOptions`, `applyQuality`, `buildSky`, and `buildClouds`:
+    - `buildClouds`: Skips reallocating the 512x256 or 1024x512 canvas, computing CPU 3D domain-warped fBm noise, and recreating the mesh unless seed, quality resolution, or cloud enablement changes.
+    - `buildSky`: Reuses existing starfield points and geometries; only updates shader twinkle uniform when toggling `reducedMotion`.
+    - `applyQuality`: Only adjusts renderer pixel ratio and triggers canvas resize if effective DPR actually changes.
+    - `setOptions`: Uses `diffViewOptions` to execute only the necessary GPU updates.
+  - Created unit test suite `tests/render_diff.test.ts` (6 tests):
+    - `diffViewOptions detects no rebuild needed for nonvisual setting changes`
+    - `diffViewOptions detects planet mesh rebuild when quality level changes`
+    - `diffViewOptions detects planet mesh rebuild when seed changes`
+    - `diffViewOptions detects cloud rebuild when cloud resolution changes`
+    - `diffViewOptions detects sky rebuild when star count changes`
+    - `diffViewOptions detects dpr change when quality pixel ratio ceiling changes`
+  - Added `Journey 8: Unnecessary renderer rebuilding prevention (P005)` to `tests/e2e/journeys.spec.ts`:
+    - Starts steward world and samples baseline `rebuildStats` via `window.worldMachine.view.rebuildStats`.
+    - Sets baseline quality to `medium`.
+    - Dispatches nonvisual settings updates (`showBorders: false`, `showBorders: true`, `reducedMotion: true`).
+    - Asserts 0 cloud builds, 0 sky builds, 0 planet mesh builds occurred during nonvisual updates despite `setOptionsCalls` incrementing.
+    - Transitions quality from `medium` to `high` and asserts that `cloudBuilds`, `skyBuilds`, and `planetMeshBuilds` increment by exactly 1.
+- **Pass Condition & Evidence:**
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run test` passed 168/168 Vitest tests across 18 suites in 4.90s.
+  - `bun run sim:bench` passed 7/7 benchmark suites in 1.35s.
+  - `bun run build` built production bundle cleanly in 1.34s.
+  - `bun run test:e2e` passed all 16/16 Playwright real-browser journeys across Desktop Chrome and Pixel 7 mobile touch emulation.
+- **Next Task:** Checkpoint CP18 — P006: Nonblocking strategy comparison.
+
 
 

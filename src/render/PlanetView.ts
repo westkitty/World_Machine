@@ -37,6 +37,59 @@ const QUALITY = {
   high: { level: 6, pixelRatio: 2, clouds: true, stars: 3200, bloom: true, waves: 1, sky: true },
 } as const;
 
+export interface ViewDiffResult {
+  rebuildPlanetMesh: boolean;
+  rebuildClouds: boolean;
+  rebuildSky: boolean;
+  dprChanged: boolean;
+  updateTwinkleOnly: boolean;
+}
+
+/**
+ * Compares two ViewOptions configurations and seeds to determine exactly
+ * which GPU and rendering resources require reconstruction (P005).
+ */
+export function diffViewOptions(
+  prevOptions: ViewOptions,
+  nextOptions: ViewOptions,
+  prevSeed: string,
+  nextSeed: string,
+  devicePixelRatio?: number,
+): ViewDiffResult {
+  const dpr = devicePixelRatio ?? (typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+  const prevLevel = QUALITY[prevOptions.quality].level;
+  const nextLevel = QUALITY[nextOptions.quality].level;
+  const rebuildPlanetMesh = prevLevel !== nextLevel || prevSeed !== nextSeed;
+
+  const prevCloudsEnabled = QUALITY[prevOptions.quality].clouds && !prevOptions.reducedEffects;
+  const nextCloudsEnabled = QUALITY[nextOptions.quality].clouds && !nextOptions.reducedEffects;
+  const prevCloudRes = prevOptions.quality === 'high' ? 1024 : 512;
+  const nextCloudRes = nextOptions.quality === 'high' ? 1024 : 512;
+  const prevCloudSig = prevCloudsEnabled ? `${prevSeed}:${prevCloudRes}` : 'disabled';
+  const nextCloudSig = nextCloudsEnabled ? `${nextSeed}:${nextCloudRes}` : 'disabled';
+  const rebuildClouds = prevCloudSig !== nextCloudSig;
+
+  const prevFx = !prevOptions.reducedEffects;
+  const nextFx = !nextOptions.reducedEffects;
+  const prevSkySig = `${QUALITY[prevOptions.quality].sky && prevFx ? 1 : 0}:${QUALITY[prevOptions.quality].stars}`;
+  const nextSkySig = `${QUALITY[nextOptions.quality].sky && nextFx ? 1 : 0}:${QUALITY[nextOptions.quality].stars}`;
+  const rebuildSky = prevSkySig !== nextSkySig;
+
+  const prevDpr = Math.min(dpr, QUALITY[prevOptions.quality].pixelRatio);
+  const nextDpr = Math.min(dpr, QUALITY[nextOptions.quality].pixelRatio);
+  const dprChanged = prevDpr !== nextDpr;
+
+  const updateTwinkleOnly = !rebuildSky && prevOptions.reducedMotion !== nextOptions.reducedMotion;
+
+  return {
+    rebuildPlanetMesh,
+    rebuildClouds,
+    rebuildSky,
+    dprChanged,
+    updateTwinkleOnly,
+  };
+}
+
 const BUILDING_COLORS: Record<BuildingType, number> = {
   farm: 0xc9d36a, mine: 0xd0764a, storage: 0xd9b56a, energy: 0x6fd1e0, port: 0x7aa6ff,
 };
@@ -132,6 +185,16 @@ export class PlanetView {
   selectedCell = -1;
   options: ViewOptions;
   contextLost = false;
+  rebuildStats = {
+    cloudBuilds: 0,
+    skyBuilds: 0,
+    planetMeshBuilds: 0,
+    setOptionsCalls: 0,
+  };
+  private cloudSignature = '';
+  private skySignature = '';
+  private currentDpr = -1;
+  private lastStateSeed = '';
   /** True while a menu is open over the planet: allows a slow cinematic drift. */
   cinematic = false;
   onContextChange: (lost: boolean) => void = () => {};
@@ -274,7 +337,7 @@ export class PlanetView {
     this.hover.visible = false;
     this.scene.add(this.selection, this.hover, this.effects.group);
 
-    this.applyQuality();
+    this.applyQuality(true);
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
   }
@@ -299,15 +362,17 @@ export class PlanetView {
       return;
     }
     this.seed = key;
+    this.lastStateSeed = state.seed;
     if (this.planet) {
       this.scene.remove(this.planet);
       this.planet.geometry.dispose();
     }
+    this.rebuildStats.planetMeshBuilds++;
     this.planetData = buildPlanetMesh(state, QUALITY[this.options.quality].level);
     this.planet = new THREE.Mesh(this.planetData.geometry, this.planetMat);
     this.planet.renderOrder = 1;
     this.scene.add(this.planet);
-    this.buildClouds(state.seed);
+    this.buildClouds(state.seed, false);
     this.routeSignature = '';
     this.effects.clear();
     this.syncTick(state);
@@ -870,22 +935,39 @@ export class PlanetView {
   // ---------------------------------------------------------------- quality & lifecycle
 
   setOptions(options: ViewOptions, state: WorldState): void {
-    const levelChanged = QUALITY[options.quality].level !== QUALITY[this.options.quality].level;
+    this.rebuildStats.setOptionsCalls++;
+    const prevOptions = this.options;
+    const diff = diffViewOptions(prevOptions, options, this.lastStateSeed, state.seed);
     this.options = options;
+    this.lastStateSeed = state.seed;
     this.degraded = false;
-    this.applyQuality();
-    if (levelChanged) this.syncWorld(state, true);
-    else this.buildClouds(state.seed);
+
+    this.applyQuality(false);
+
+    if (diff.rebuildPlanetMesh) {
+      this.syncWorld(state, true);
+    } else {
+      this.buildClouds(state.seed, false);
+    }
   }
 
-  private applyQuality(): void {
+  private applyQuality(force = false): void {
     const q = QUALITY[this.options.quality];
     const fx = !this.options.reducedEffects;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q.pixelRatio));
+    const targetDpr = Math.min(window.devicePixelRatio || 1, q.pixelRatio);
+
+    if (force || this.currentDpr !== targetDpr) {
+      this.currentDpr = targetDpr;
+      this.renderer.setPixelRatio(targetDpr);
+      this.resize();
+    }
+
     this.atmosphereMat.uniforms.strength.value = fx ? 1 : 0.55;
     this.oceanMat.uniforms.waves.value = fx ? q.waves : 0;
     this.effects.intensity = fx ? (this.options.quality === 'low' ? 0.5 : 1) : 0.3;
-    this.buildSky(q.sky && fx, q.stars);
+
+    this.buildSky(q.sky && fx, q.stars, force);
+
     if (q.bloom && fx) {
       if (!this.composer) {
         this.composer = new EffectComposer(this.renderer);
@@ -899,10 +981,19 @@ export class PlanetView {
     } else if (this.bloom) {
       this.bloom.enabled = false;
     }
-    this.resize();
   }
 
-  private buildSky(withBand: boolean, starCount: number): void {
+  private buildSky(withBand: boolean, starCount: number, force = false): void {
+    const sig = `${withBand ? 1 : 0}:${starCount}`;
+    if (!force && this.skySignature === sig && this.stars) {
+      if (this.starMat) {
+        this.starMat.uniforms.twinkle.value = this.options.reducedMotion ? 0 : 1;
+      }
+      return;
+    }
+    this.skySignature = sig;
+    this.rebuildStats.skyBuilds++;
+
     if (this.stars) {
       this.scene.remove(this.stars);
       this.stars.geometry.dispose();
@@ -950,7 +1041,15 @@ export class PlanetView {
     this.scene.add(this.stars);
   }
 
-  private buildClouds(seed: string): void {
+  private buildClouds(seed: string, force = false): void {
+    const cloudsEnabled = QUALITY[this.options.quality].clouds && !this.options.reducedEffects;
+    const res = this.options.quality === 'high' ? 1024 : 512;
+    const sig = cloudsEnabled ? `${seed}:${res}` : 'disabled';
+    if (!force && this.cloudSignature === sig) {
+      return;
+    }
+    this.cloudSignature = sig;
+
     if (this.clouds) {
       this.scene.remove(this.clouds);
       this.clouds.geometry.dispose();
@@ -961,8 +1060,11 @@ export class PlanetView {
     this.cloudTexture = null;
     this.planetMat.uniforms.cloudShadow.value = 0;
     this.planetMat.uniforms.cloudMap.value = null;
-    if (!QUALITY[this.options.quality].clouds || this.options.reducedEffects) return;
-    const w = this.options.quality === 'high' ? 1024 : 512, h = w / 2;
+
+    if (!cloudsEnabled) return;
+
+    this.rebuildStats.cloudBuilds++;
+    const w = res, h = w / 2;
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d')!;
