@@ -253,6 +253,15 @@ Migrations chain sequentially via the `MIGRATIONS` registry in `src/sim/save.ts`
 from historical v1 schemas are verified by regression fixtures in `tests/fixtures/v1/` and tested via
 `tests/save_compatibility.test.ts`.
 
+## Save overwrite/delete protection and recovery (P002)
+
+Save management in `src/app/storage.ts` and the UI (`src/ui/menus.ts`) is fully protected against accidental loss:
+- **Atomic save writes**: `saveToSlot` reads existing data before attempting writes. If `setItem` throws (e.g. `QuotaExceededError`), an automatic rollback restores the previous slot content and metadata intact, guaranteeing failed writes never destroy or truncate earlier data.
+- **Overwrite & delete confirmation**: Saving to an occupied slot or deleting any save slot triggers an explicit confirmation prompt. Canceling is strictly a no-op; no storage keys, metadata, or backups are mutated.
+- **Displacement backup store**: When an occupied slot is overwritten or deleted, or when yearly autosave advances, the prior save JSON and metadata are archived into `wm:backup:<slot>` and `wm:backup:last` (`BackupRecord`).
+- **Tested recovery routes**: Backups can be restored back into active slots via `restoreBackup(slot)` with reversible swap semantics, or downloaded directly via `exportSlotBackup(slot)`.
+- Verified via automated test suite in `tests/save_protection.test.ts`.
+
 ## Rendering and performance
 
 - One `WebGLRenderer`, one frame loop (`App.loop`), ACES filmic tone mapping. All custom

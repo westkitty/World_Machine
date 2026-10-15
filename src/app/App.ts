@@ -15,7 +15,7 @@ import type { BuildingType, GameMode, GenParams, WorldState } from '../sim/types
 import { PlanetView } from '../render/PlanetView';
 import { Hud } from '../ui/Hud';
 import { SimClock } from './clock';
-import { loadFromSlot, loadSettings, saveSettings, saveToSlot, type Settings, type Slot } from './storage';
+import { deleteSlot, getBackup, loadFromSlot, loadSettings, restoreBackup, saveSettings, saveToSlot, slotName, type Settings, type Slot } from './storage';
 
 export type Tool =
   | { kind: 'inspect' }
@@ -133,6 +133,36 @@ export class App {
     } catch (e) {
       this.hud.toast((e as Error).message, 'bad');
     }
+  }
+
+  deleteSlot(slot: Slot): void {
+    if (deleteSlot(slot)) {
+      this.hud.toast(`Deleted ${slotName(slot)}. A recovery backup was retained.`, 'info');
+      this.hud.refresh(true);
+    } else {
+      this.hud.toast(`Could not delete ${slotName(slot)}.`, 'bad');
+    }
+  }
+
+  restoreSlotBackup(slot: Slot): void {
+    const r = restoreBackup(slot);
+    this.hud.toast(r.message, r.ok ? 'good' : 'bad');
+    this.hud.refresh(true);
+  }
+
+  exportSlotBackup(slot: Slot): void {
+    const backup = getBackup(slot);
+    if (!backup) {
+      this.hud.toast(`No backup found for ${slotName(slot)}.`, 'bad');
+      return;
+    }
+    const blob = new Blob([backup.json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `world-machine-${slot}-backup-${backup.reason}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    this.hud.toast(`Backup for ${slotName(slot)} exported as a JSON file.`, 'good');
   }
 
   exportSave(): void {

@@ -1,5 +1,5 @@
 import type { App } from '../app/App';
-import { SLOTS, deleteSlot, listSlots, slotName, storageAvailable } from '../app/storage';
+import { SLOTS, getBackup, listSlots, slotName, storageAvailable, type Slot } from '../app/storage';
 import { createReferenceWorld } from '../sim/create';
 import { SCENARIOS } from '../sim/scenarios';
 import { getTopology } from '../sim/topology';
@@ -140,24 +140,109 @@ export function settingsScreen(app: App): HTMLElement {
 }
 
 export function savesScreen(app: App): HTMLElement {
-  const infos = listSlots();
-  const file = h('input', { type: 'file', accept: 'application/json,.json', 'aria-label': 'Import save file', on: { change: (e: Event) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { app.importSave(f); app.hud.closeModal(); } } } }) as HTMLInputElement;
-  return h('div.sheet',
-    h('h2', 'Saves'),
-    storageAvailable() ? null : h('p.warnline', 'Browser storage is unavailable in this session; use Export and Import instead.'),
-    h('ul.slots', ...SLOTS.map((slot, i) => {
+  let confirming: { slot: Slot; action: 'overwrite' | 'delete' } | null = null;
+  const root = h('div.sheet');
+
+  function render(): void {
+    clear(root);
+    const infos = listSlots();
+    const file = h('input', {
+      type: 'file',
+      accept: 'application/json,.json',
+      'aria-label': 'Import save file',
+      on: {
+        change: (e: Event) => {
+          const f = (e.target as HTMLInputElement).files?.[0];
+          if (f) {
+            app.importSave(f);
+            app.hud.closeModal();
+          }
+        },
+      },
+    }) as HTMLInputElement;
+
+    const slotItems = SLOTS.map((slot, i) => {
       const info = infos[i];
+      const backup = getBackup(slot);
+      const currentConfirm = confirming;
+      const isConfirming = currentConfirm !== null && currentConfirm.slot === slot;
+
+      const actions = isConfirming
+        ? h('div.confirm-box',
+            h('span.warnline', currentConfirm.action === 'overwrite'
+              ? `Overwrite ${slotName(slot)}? Prior save will be preserved in recovery backup.`
+              : `Delete ${slotName(slot)}? A recovery backup will be kept.`),
+            button(currentConfirm.action === 'overwrite' ? 'Confirm Overwrite' : 'Confirm Delete', () => {
+              if (currentConfirm.action === 'overwrite') {
+                app.saveSlot(slot);
+              } else {
+                app.deleteSlot(slot);
+              }
+              confirming = null;
+              render();
+            }, { kind: 'bad' }),
+            button('Cancel', () => {
+              confirming = null;
+              render();
+            }, { kind: 'ghost' }))
+        : h('div.inline',
+            slot !== 'auto'
+              ? button('Save here', () => {
+                  if (info) {
+                    confirming = { slot, action: 'overwrite' };
+                    render();
+                  } else {
+                    app.saveSlot(slot);
+                    render();
+                  }
+                }, { kind: 'ghost' })
+              : null,
+            button('Load', () => {
+              app.loadSlot(slot);
+              app.hud.closeModal();
+            }, { kind: 'ghost', disabled: info ? false : 'Empty slot' }),
+            button('Delete', () => {
+              confirming = { slot, action: 'delete' };
+              render();
+            }, { kind: 'ghost', disabled: info ? false : 'Empty slot' }));
+
+      const backupRow = backup
+        ? h('div.backup-item',
+            h('span.muted', `Recovery backup (${backup.reason}) · ${new Date(backup.replacedAt).toLocaleTimeString()} (${Math.round(backup.json.length / 1024)} KB)`),
+            h('div.inline',
+              button('Restore Backup', () => {
+                app.restoreSlotBackup(slot);
+                render();
+              }, { kind: 'ghost', title: `Restore this backup to ${slotName(slot)}` }),
+              button('Export Backup', () => {
+                app.exportSlotBackup(slot);
+              }, { kind: 'ghost', title: 'Export backup as a JSON file' })))
+        : null;
+
       return h('li',
-        h('div', h('b', slotName(slot)), h('p.muted', info ? `${info.summary} · ${new Date(info.savedAt).toLocaleString()}` : 'Empty')),
+        h('div',
+          h('b', slotName(slot)),
+          h('p.muted', info ? `${info.summary} · ${new Date(info.savedAt).toLocaleString()}` : 'Empty')),
+        actions,
+        backupRow);
+    });
+
+    const warnEl: HTMLElement[] = storageAvailable() ? [] : [h('p.warnline', 'Browser storage is unavailable in this session; use Export and Import instead.')];
+
+    root.append(
+      h('h2', 'Saves'),
+      ...warnEl,
+      h('ul.slots', ...slotItems),
+      h('section.block',
+        h('h3', 'Files'),
         h('div.inline',
-          slot !== 'auto' ? button('Save here', () => { app.saveSlot(slot); app.hud.openSaves(); }, { kind: 'ghost' }) : null,
-          button('Load', () => { app.loadSlot(slot); app.hud.closeModal(); }, { kind: 'ghost', disabled: info ? false : 'Empty slot' }),
-          button('Delete', () => { deleteSlot(slot); app.hud.openSaves(); }, { kind: 'ghost', disabled: info ? false : 'Empty slot' })));
-    })),
-    h('section.block', h('h3', 'Files'),
-      h('div.inline', button('Export current world (.json)', () => app.exportSave()), h('label.btn.ghost', 'Import .json', file)),
-      h('p.muted', 'Saves contain the full simulation: seed, random-generator state, every region, settlement, route, shipment, policy, technology, scenario progress and history.')),
-  );
+          button('Export current world (.json)', () => app.exportSave()),
+          h('label.btn.ghost', 'Import .json', file)),
+        h('p.muted', 'Saves contain the full simulation: seed, random-generator state, every region, settlement, route, shipment, policy, technology, scenario progress and history.')));
+  }
+
+  render();
+  return root;
 }
 
 export function helpScreen(): HTMLElement {

@@ -16,37 +16,108 @@ export interface SlotInfo {
   summary: string;
 }
 
-const PREFIX = 'wm:save:';
-const META = 'wm:savemeta:';
+export const PREFIX = 'wm:save:';
+export const META = 'wm:savemeta:';
+export const BACKUP_PREFIX = 'wm:backup:';
+
+export interface BackupRecord {
+  slot: Slot;
+  json: string;
+  info: SlotInfo;
+  replacedAt: string;
+  reason: 'overwrite' | 'delete' | 'autosave';
+}
+
+function getStorage(): Storage | null {
+  try {
+    const g = typeof globalThis !== 'undefined' ? (globalThis as unknown as { localStorage?: Storage }) : null;
+    if (g && g.localStorage) return g.localStorage;
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export function storageAvailable(): boolean {
+  const st = getStorage();
+  if (!st) return false;
   try {
     const k = 'wm:probe';
-    localStorage.setItem(k, '1');
-    localStorage.removeItem(k);
+    st.setItem(k, '1');
+    st.removeItem(k);
     return true;
   } catch {
     return false;
   }
 }
 
+/**
+ * Atomic save with rollback and displacement backup.
+ * If saving to an occupied slot succeeds, the displaced save is backed up.
+ * If saving fails for any reason (e.g. quota exceeded), the earlier save
+ * in this slot is preserved and never corrupted or truncated.
+ */
 export function saveToSlot(state: WorldState, slot: Slot, label: string): { ok: boolean; message: string } {
+  const st = getStorage();
+  if (!st) {
+    return { ok: false, message: 'Browser storage is unavailable (private mode or blocked). Use Export to keep a save file.' };
+  }
+
   const json = serialize(state, label);
+  let oldJson: string | null = null;
+  let oldMeta: string | null = null;
   try {
-    localStorage.setItem(PREFIX + slot, json);
+    oldJson = st.getItem(PREFIX + slot);
+    oldMeta = st.getItem(META + slot);
+  } catch { /* ignore read failure */ }
+
+  try {
+    st.setItem(PREFIX + slot, json);
     const info: SlotInfo = { slot, label, savedAt: new Date().toISOString(), summary: summarize(state) };
-    localStorage.setItem(META + slot, JSON.stringify(info));
+    st.setItem(META + slot, JSON.stringify(info));
+
+    // If an existing save was replaced, preserve it in the backup recovery store
+    if (oldJson && oldMeta) {
+      try {
+        const oldInfo = JSON.parse(oldMeta) as SlotInfo;
+        const backup: BackupRecord = {
+          slot,
+          json: oldJson,
+          info: oldInfo,
+          replacedAt: new Date().toISOString(),
+          reason: slot === 'auto' ? 'autosave' : 'overwrite',
+        };
+        st.setItem(BACKUP_PREFIX + slot, JSON.stringify(backup));
+        st.setItem(BACKUP_PREFIX + 'last', JSON.stringify(backup));
+      } catch { /* backup storage quota or failure shouldn't abort a successful save */ }
+    }
     return { ok: true, message: `Saved to ${slotName(slot)} (${Math.round(json.length / 1024)} KB).` };
   } catch (e) {
-    const quota = e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22);
-    return { ok: false, message: quota ? 'Browser storage is full. Export the save as a file instead, or delete an old slot.' : 'Browser storage is unavailable (private mode or blocked). Use Export to keep a save file.' };
+    // ATOMIC ROLLBACK: Failed write MUST NOT destroy earlier data!
+    try {
+      if (oldJson !== null) st.setItem(PREFIX + slot, oldJson);
+      else st.removeItem(PREFIX + slot);
+      if (oldMeta !== null) st.setItem(META + slot, oldMeta);
+      else st.removeItem(META + slot);
+    } catch { /* ignore rollback failure */ }
+
+    const quota = typeof DOMException !== 'undefined' && e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22);
+    return {
+      ok: false,
+      message: quota
+        ? 'Browser storage is full. Export the save as a file instead, or delete an old slot.'
+        : 'Browser storage is unavailable (private mode or blocked). Use Export to keep a save file.',
+    };
   }
 }
 
 export function loadFromSlot(slot: Slot): WorldState {
+  const st = getStorage();
+  if (!st) throw new SaveError('Browser storage is unavailable.');
   let json: string | null;
   try {
-    json = localStorage.getItem(PREFIX + slot);
+    json = st.getItem(PREFIX + slot);
   } catch {
     throw new SaveError('Browser storage is unavailable.');
   }
@@ -54,17 +125,118 @@ export function loadFromSlot(slot: Slot): WorldState {
   return deserialize(json);
 }
 
-export function deleteSlot(slot: Slot): void {
+/**
+ * Deletes a slot while archiving the removed save into the recovery backup store.
+ */
+export function deleteSlot(slot: Slot): boolean {
+  const st = getStorage();
+  if (!st) return false;
   try {
-    localStorage.removeItem(PREFIX + slot);
-    localStorage.removeItem(META + slot);
+    const oldJson = st.getItem(PREFIX + slot);
+    const oldMeta = st.getItem(META + slot);
+    if (oldJson && oldMeta) {
+      try {
+        const oldInfo = JSON.parse(oldMeta) as SlotInfo;
+        const backup: BackupRecord = {
+          slot,
+          json: oldJson,
+          info: oldInfo,
+          replacedAt: new Date().toISOString(),
+          reason: 'delete',
+        };
+        st.setItem(BACKUP_PREFIX + slot, JSON.stringify(backup));
+        st.setItem(BACKUP_PREFIX + 'last', JSON.stringify(backup));
+      } catch { /* ignore backup storage failures */ }
+    }
+    st.removeItem(PREFIX + slot);
+    st.removeItem(META + slot);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getBackup(slot: Slot): BackupRecord | null {
+  const st = getStorage();
+  if (!st) return null;
+  try {
+    const raw = st.getItem(BACKUP_PREFIX + slot);
+    return raw ? (JSON.parse(raw) as BackupRecord) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function getLastBackup(): BackupRecord | null {
+  const st = getStorage();
+  if (!st) return null;
+  try {
+    const raw = st.getItem(BACKUP_PREFIX + 'last');
+    return raw ? (JSON.parse(raw) as BackupRecord) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasBackup(slot: Slot): boolean {
+  return getBackup(slot) !== null;
+}
+
+export function clearBackup(slot: Slot): void {
+  const st = getStorage();
+  if (!st) return;
+  try {
+    st.removeItem(BACKUP_PREFIX + slot);
   } catch { /* ignore */ }
 }
 
+/**
+ * Restores a backed up save into the target slot with atomic swapping.
+ */
+export function restoreBackup(slot: Slot): { ok: boolean; message: string } {
+  const st = getStorage();
+  if (!st) return { ok: false, message: 'Browser storage is unavailable.' };
+  try {
+    const raw = st.getItem(BACKUP_PREFIX + slot);
+    if (!raw) return { ok: false, message: `No backup available for ${slotName(slot)}.` };
+    const backup = JSON.parse(raw) as BackupRecord;
+
+    // Validate that the backup json is well-formed
+    deserialize(backup.json);
+
+    const curJson = st.getItem(PREFIX + slot);
+    const curMeta = st.getItem(META + slot);
+
+    st.setItem(PREFIX + slot, backup.json);
+    st.setItem(META + slot, JSON.stringify(backup.info));
+
+    // If slot had an existing save, swap it into backup so restore can also be undone
+    if (curJson && curMeta) {
+      const curInfo = JSON.parse(curMeta) as SlotInfo;
+      const displaced: BackupRecord = {
+        slot,
+        json: curJson,
+        info: curInfo,
+        replacedAt: new Date().toISOString(),
+        reason: 'overwrite',
+      };
+      st.setItem(BACKUP_PREFIX + slot, JSON.stringify(displaced));
+      st.setItem(BACKUP_PREFIX + 'last', JSON.stringify(displaced));
+    } else {
+      st.removeItem(BACKUP_PREFIX + slot);
+    }
+    return { ok: true, message: `Restored backup to ${slotName(slot)}.` };
+  } catch (e) {
+    return { ok: false, message: `Could not restore backup: ${(e as Error).message}` };
+  }
+}
+
 export function listSlots(): (SlotInfo | null)[] {
+  const st = getStorage();
+  if (!st) return SLOTS.map(() => null);
   return SLOTS.map((slot) => {
     try {
-      const raw = localStorage.getItem(META + slot);
+      const raw = st.getItem(META + slot);
       return raw ? (JSON.parse(raw) as SlotInfo) : null;
     } catch {
       return null;
@@ -109,8 +281,10 @@ export function defaultSettings(): Settings {
 
 export function loadSettings(): Settings {
   const d = defaultSettings();
+  const st = getStorage();
+  if (!st) return d;
   try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
+    const raw = st.getItem(SETTINGS_KEY);
     return raw ? { ...d, ...JSON.parse(raw) } : d;
   } catch {
     return d;
@@ -118,5 +292,7 @@ export function loadSettings(): Settings {
 }
 
 export function saveSettings(s: Settings): void {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+  const st = getStorage();
+  if (!st) return;
+  try { st.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* ignore */ }
 }

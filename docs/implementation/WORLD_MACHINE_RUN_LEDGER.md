@@ -137,7 +137,43 @@
   - Total automated test suite expanded to 75 tests passing across 6 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`).
   - `bun run typecheck` passed with 0 errors.
   - `bun run build` built cleanly.
+  - Checkpoint commit: `c034840667af47ec8b70d4a50d264e8cb731e218` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
 - **Next Task:** Checkpoint CP05 — P002: Save overwrite/delete protection.
 
+---
 
+### Checkpoint CP05 — P002: Save Overwrite/Delete Protection
 
+- **Proposal:** P002 — Save overwrite/delete protection
+- **Phase:** F0 (Foundation)
+- **Status:** `VERIFIED_LOCAL`
+- **Route / Effort:** Build · S
+- **Prerequisites:** Baseline established (`VERIFIED_LOCAL`), CP01–CP04 completed
+- **Implementation Packet:**
+  - Enhanced `src/app/storage.ts`:
+    - Implemented atomic write with rollback: `saveToSlot` reads existing data before writing; if `setItem` throws (e.g. `QuotaExceededError`), the slot and metadata are restored intact, guaranteeing failed writes never destroy or truncate earlier data.
+    - Added displacement backup store (`wm:backup:<slot>` and `wm:backup:last`) archiving displaced saves on overwrite, deletion, or yearly autosaves with `BackupRecord`.
+    - Added `restoreBackup(slot)` with reversible swap semantics, `getBackup(slot)`, `clearBackup(slot)`, `hasBackup(slot)`.
+  - Enhanced UI in `src/ui/menus.ts` (`savesScreen`):
+    - Added confirmation prompts when saving to occupied slots (`Confirm Overwrite` / `Cancel`) and deleting slots (`Confirm Delete` / `Cancel`).
+    - Verified cancel is strictly a no-op that leaves active slots and backups unmutated.
+    - Added backup recovery rows with `Restore Backup` and `Export Backup` buttons.
+  - Enhanced `App.ts`:
+    - Added `deleteSlot(slot)`, `restoreSlotBackup(slot)`, `exportSlotBackup(slot)`.
+  - Added CSS in `src/styles.css` for `.confirm-box`, `.backup-item`, and `.btn.bad`.
+  - Created test suite `tests/save_protection.test.ts`:
+    - `cancel is a no-op: aborted save/delete actions do not mutate slots or backups`
+    - `atomic rollback: failed writes do not destroy or truncate earlier save data`
+    - `overwritten save has a tested recovery route via backup and restore`
+    - `deleted save has a tested recovery route via backup and restore`
+    - `autosave archives prior year in backup`
+    - `corrupt backup data fails cleanly without destroying current slot`
+    - `clearBackup removes backup from storage`
+  - Updated `docs/TECHNICAL.md` with Save overwrite/delete protection and recovery documentation.
+- **Pass Condition & Evidence:**
+  - `bun run test tests/save_protection.test.ts` passed 7/7 tests.
+  - Total automated test suite expanded to 82 tests passing across 7 files (`tests/sim.test.ts`, `tests/scenarios.test.ts`, `tests/scale.test.ts`, `tests/audit.test.ts`, `tests/authority.test.ts`, `tests/save_compatibility.test.ts`, `tests/save_protection.test.ts`).
+  - `bun run typecheck` passed with 0 errors.
+  - `bun run build` built cleanly.
+  - Checkpoint commit: `feat(world-machine): CP05 P002 save overwrite/delete protection` (pushed to `origin/feat/world-machine-f0`, verified remote SHA equality).
+- **Next Task:** Checkpoint CP06 — P003: Scenario constraints authoritative.
